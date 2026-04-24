@@ -5,9 +5,8 @@ labels: bug
 ---
 
 <!--
-BEFORE FILING: Search open AND closed issues. The Windows SessionStart
-hook alone has been reported 29 times. If your issue already exists,
-add a comment or reaction to the existing one instead.
+BEFORE FILING: Search open AND closed issues. If your issue already
+exists, add a comment or reaction to the existing one instead.
 -->
 
 - [ ] I searched existing issues and this is not a duplicate
@@ -16,21 +15,17 @@ add a comment or reaction to the existing one instead.
 
 | Field | Value |
 |-------|-------|
-| Superpowers version | |
-| Harness (Claude Code, Cursor, etc.) | |
-| Harness version | |
+| Dwarven version | |
+| Claude Code version | |
 | Model | |
 | OS + shell | |
 
-## Is this a Superpowers issue or a platform issue?
-<!-- Superpowers is a plugin. Some reported "bugs" are actually issues
-     in the underlying platform or model. If you're not sure, try
-     reproducing without Superpowers installed.
+## Is this a Dwarven issue or a Claude Code issue?
+<!-- Dwarven is a Claude Code plugin. Some reported "bugs" are actually
+     issues in Claude Code or the underlying model. If you're not sure,
+     try reproducing without Dwarven installed. -->
 
-     If the problem persists without Superpowers, file the issue with
-     your platform instead. -->
-
-- [ ] I confirmed this issue does not occur without Superpowers installed
+- [ ] I confirmed this issue does not occur without Dwarven installed
 
 ## What happened?
 <!-- Be specific. "It doesn't work" is not a bug report. -->

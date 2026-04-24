@@ -43,7 +43,7 @@ If no directory exists and no CLAUDE.md preference:
 No worktree directory found. Where should I create worktrees?
 
 1. .worktrees/ (project-local, hidden)
-2. ~/.config/superpowers/worktrees/<project-name>/ (global location)
+2. ~/.config/dwarven/worktrees/<project-name>/ (global location)
 
 Which would you prefer?
 ```
@@ -59,16 +59,14 @@ Which would you prefer?
 git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/dev/null
 ```
 
-**If NOT ignored:**
-
-Per Jesse's rule "Fix broken things immediately":
+**If NOT ignored:** Fix broken things immediately:
 1. Add appropriate line to .gitignore
 2. Commit the change
 3. Proceed with worktree creation
 
 **Why critical:** Prevents accidentally committing worktree contents to repository.
 
-### For Global Directory (~/.config/superpowers/worktrees)
+### For Global Directory (~/.config/dwarven/worktrees)
 
 No .gitignore verification needed - outside project entirely.
 
@@ -88,8 +86,8 @@ case $LOCATION in
   .worktrees|worktrees)
     path="$LOCATION/$BRANCH_NAME"
     ;;
-  ~/.config/superpowers/worktrees/*)
-    path="~/.config/superpowers/worktrees/$project/$BRANCH_NAME"
+  ~/.config/dwarven/worktrees/*)
+    path="~/.config/dwarven/worktrees/$project/$BRANCH_NAME"
     ;;
 esac
 
