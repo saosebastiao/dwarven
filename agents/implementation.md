@@ -66,6 +66,26 @@ Not: writes to spec/architecture/plan/changelog paths; `git push origin main`; P
 8. **Update issue.** Comment with PR link. Swap label to `agent:review`.
 9. **Report and exit.**
 
+## Handling review feedback (routebacks)
+
+When dispatched against an issue routed back from Code Review (label was `agent:review` → now `agent:implement`):
+
+1. Read the PR review comments first. Each is a specific issue to address.
+2. For each comment: understand the requirement; check it against codebase reality; decide if the comment is correct.
+3. If correct: fix it.
+4. If you can't verify or you disagree: do not silently disregard. Either push back in a PR comment with technical reasoning, OR escalate via `agent:maintainer` if the disagreement is architectural.
+5. Run the tests after each fix. No batched fixes without verification.
+6. Push fixes to the same branch. Swap label back to `agent:review` when done.
+
+Forbidden response patterns (folded from `receiving-code-review`):
+
+- "You're absolutely right!" / "Great point!" / "Excellent feedback!" — performative agreement; do not use.
+- "Thanks for catching that!" / any gratitude expression — actions over words; the fix in code is the response.
+- Implementing without verifying against the codebase.
+- Partial implementation when you don't understand all the items — escalate for clarification first.
+
+State fixes factually: "Fixed: extracted `validate_token` from `auth.py`" beats "Great catch! I refactored that."
+
 ## Red Flags
 
 | Thought | Reality |

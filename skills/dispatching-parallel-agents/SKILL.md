@@ -13,6 +13,10 @@ When you have multiple unrelated failures (different test files, different subsy
 
 **Core principle:** Dispatch one agent per independent problem domain. Let them work concurrently.
 
+## Who uses this skill (in Dwarven)
+
+Per R6.4 of `docs/specs/dwarven.md`, the `Agent` tool (the dispatch primitive) is in the allowlist of: the maintainer shell, the System Specification agent, and the Architect agent. Other agents are scoped against nesting. So this skill applies when the shell or Spec/Architect needs to fan out for parallel research — not when discrete-work agents (Implementation, Test Dev, Review, Doc, Triage) are running.
+
 ## When to Use
 
 ```dot
@@ -65,13 +69,15 @@ Each agent gets:
 
 ### 3. Dispatch in Parallel
 
-```typescript
-// In Claude Code / AI environment
-Task("Fix agent-tool-abort.test.ts failures")
-Task("Fix batch-completion-behavior.test.ts failures")
-Task("Fix tool-approval-race-conditions.test.ts failures")
-// All three run concurrently
+In Claude Code, dispatch via the `Agent` tool — one call per subagent, all within a single response so the runtime executes them concurrently:
+
 ```
+Agent(subagent_type="general-purpose", prompt="Fix agent-tool-abort.test.ts failures")
+Agent(subagent_type="general-purpose", prompt="Fix batch-completion-behavior.test.ts failures")
+Agent(subagent_type="general-purpose", prompt="Fix tool-approval-race-conditions.test.ts failures")
+```
+
+When called in a single response, the runtime runs them in parallel.
 
 ### 4. Review and Integrate
 

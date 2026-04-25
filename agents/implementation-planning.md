@@ -55,6 +55,25 @@ PM (R3.4) hands you `agent:plan` issues. You produce a plan, swap the label to `
 6. **Update issue.** Comment with plan path. Swap label to `agent:test`.
 7. **Report and exit.**
 
+## Plan quality rules (folded from `writing-plans`)
+
+**No placeholders.** These patterns are plan failures — never write them:
+
+- "TBD", "TODO", "implement later", "fill in details"
+- "Add appropriate error handling" / "add validation" / "handle edge cases" — be specific or omit.
+- "Write tests for the above" without actual test code or test names.
+- "Similar to step N" — restate; downstream agents may read out of order.
+- References to types, functions, or methods not defined in any earlier step.
+
+**Bite-sized step granularity.** Each step is one action that takes ~2–5 minutes for a downstream agent (Test Dev, Implementation):
+
+- "Add the function signature `validate_token(token: str) -> Result`" — step
+- "Implement the body" — step
+- "Run the test suite, expect <test name> to fail with <error>" — step
+- "Commit" — step
+
+Big steps ("implement the auth module") cause downstream agents to thrash and escalate. Decompose.
+
 ## Self-review pass
 
 For each step in the plan:
