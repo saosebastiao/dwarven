@@ -1,0 +1,28 @@
+name: Bug
+description: A divergence from documented behavior.
+title: "Bug: "
+labels: ["type:bug", "agent:pm"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when documented behavior diverges from actual code behavior. PM (`/pm`) will decompose if a fix needs planning.
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen, per docs or spec? Cite if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happens instead? Include reproduction steps.
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: OS, language version, anything else relevant.

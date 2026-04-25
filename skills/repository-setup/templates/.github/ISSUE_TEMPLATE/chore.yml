@@ -1,0 +1,15 @@
+name: Chore
+description: Infrastructure, tooling, or maintenance work.
+title: "Chore: "
+labels: ["type:chore", "agent:pm"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What needs doing?
+    validations:
+      required: true
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Why?

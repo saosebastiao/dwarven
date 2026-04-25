@@ -1,0 +1,21 @@
+name: Architecture question
+description: A design question that needs Architect attention.
+title: "Arch: "
+labels: ["type:arch", "agent:architect"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use for design questions about how the system should solve a spec requirement. The Architect (`/architect`) will resolve.
+  - type: input
+    id: spec-ref
+    attributes:
+      label: Related spec requirement(s)
+      placeholder: "R3.5"
+  - type: textarea
+    id: question
+    attributes:
+      label: The question
+      description: What's the design question? What constraints or options are you aware of?
+    validations:
+      required: true

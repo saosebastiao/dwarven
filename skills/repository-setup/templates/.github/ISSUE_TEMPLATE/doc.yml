@@ -1,0 +1,17 @@
+name: Documentation update
+description: Documentation needs updating without a code change.
+title: "Doc: "
+labels: ["type:doc", "agent:doc"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What documentation needs updating?
+      description: File path(s) and what's wrong or missing.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why?
+      description: How is the doc wrong or stale?
