@@ -156,13 +156,15 @@ Once installed, run `repository-setup` against a target project to scaffold it.
 
 | Area | State |
 |---|---|
-| Architecture | Designed; documented in this README and `CLAUDE.md`. Spec for the plugin's own behavior is forthcoming under `docs/specs/`. |
-| Agent definitions (`agents/`) | Inherited content; redesign in progress. `code-reviewer.md` is closest to its target form (becomes Code Review); the other 9 agents need to be written. |
-| Skills (`skills/`) | 14 inherited. Disposition: 6 keep cross-cutting, 1 keep + major rewrite (`using-dwarven`), 6 fold into agent prompts and delete, 1 delete entirely. See `CLAUDE.md` for the table. |
-| Slash commands (`commands/`) | 3 inherited; full set of 10 (one per agent) targeted. |
-| Repository setup skill | Targeted; not yet implemented. |
+| Architecture | Locked. Source of truth: `docs/specs/dwarven.md` (R1–R11). |
+| Agent definitions (`agents/`) | All 10 written and dispatchable via slash commands. |
+| Skills (`skills/`) | 8 in place: 7 cross-cutting (R7.2) + 1 maintainer-invoked (`repository-setup`, R8). Folding of inherited skills complete. |
+| Slash commands (`commands/`) | All 10 (one per agent) in place; deprecated inherited stubs removed. |
+| Repository setup skill | Implemented at `skills/repository-setup/` (not yet exercised against a target repo). |
+| Hooks | SessionStart loads the rewritten `using-dwarven`. PreToolUse enforces the R6.5 universal never-list as defense-in-depth on `.claude/settings.json`. |
+| Per-agent permission enforcement | Project-wide allow/deny in `.claude/settings.json` is in place. Per-agent restrictions (shell can't write; Implementation can't push to `main`; etc.) need PreToolUse subagent-context detection — targeted for follow-up. |
 | CI-driven detached dispatch | Targeted for v0.2+. |
-| Release automation | Will be re-introduced once redesign is far enough along. |
+| Release automation | Will be re-introduced when v0.1 stabilizes. |
 | Future: CLAUDE.md management skill | Helper for keeping per-repo CLAUDE.md files agent-aware. v0.2+. |
 
 Implementation status of each agent and skill is tracked in GitHub issues.

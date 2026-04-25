@@ -10,13 +10,15 @@ The full architecture is documented in `README.md`. This file is the load-bearin
 
 | Area | Status |
 |---|---|
-| Architecture | Locked. See README "The pipeline" and "The agent roster". |
-| Agent definitions (`agents/`) | Inherited; redesign in progress. `code-reviewer.md` is closest to its target form (becomes Code Review); the other 9 agents need to be written. |
-| Skills (`skills/`) | 14 inherited; disposition decided (see "Skills disposition" below). Folding work pending. |
-| Slash commands (`commands/`) | 3 inherited (`brainstorm.md`, `execute-plan.md`, `write-plan.md`); will grow to 10 (one per agent), then refactored to dispatch via Agent tool. |
-| Repository setup skill | Not yet implemented. |
+| Architecture | Locked. Source of truth: `docs/specs/dwarven.md` (R1–R11). |
+| Agent definitions (`agents/`) | All 10 written per R3.1–R3.10. |
+| Skills (`skills/`) | 8 in place: 7 cross-cutting per R7.2 + 1 maintainer-invoked (`repository-setup`, R8). Folding work complete. |
+| Slash commands (`commands/`) | All 10 in place; deprecated inherited stubs deleted. |
+| Repository setup skill | Implemented at `skills/repository-setup/` — not yet run against any target repo (including this one). |
+| Hooks | SessionStart + PreToolUse both registered. PreToolUse enforces R6.5 universal never-list. |
+| Per-agent permission enforcement | `.claude/settings.json` is project-wide; per-agent restrictions (shell vs. agent; Implementation vs. `main`; etc.) require subagent context in hook input — targeted for follow-up. |
 | CI detached dispatch | v0.2+ target. |
-| Dwarven's own scaffolding | Missing `docs/specs/`, `docs/architecture/`, `docs/plans/`, `docs/CHANGELOG.md`. To eat its own dogfood, run `repository-setup` against this repo once that skill exists. |
+| Dwarven's own scaffolding | `docs/specs/dwarven.md`, `docs/CHANGELOG.md`, `docs/architecture/`, `docs/plans/` exist. GitHub-side scaffolding (label set, issue/PR templates, branch protection) lands when `repository-setup` first runs against this repo. |
 
 ## Architectural decisions (locked, with rationale)
 
@@ -74,7 +76,9 @@ See README "Labels" for the full taxonomy. Working notes:
 - **Single-owner rule.** Exactly one `agent:*` per open issue. Multi-owner is forbidden — if parallel work is needed, spawn sibling issues.
 - **Label writes are prompt-level, not mechanism-level.** GitHub doesn't expose per-user label permissions, and Bash patterns can't distinguish `gh label add agent:foo` from `gh label add agent:bar`. Discipline is enforced by agent system prompts and post-hoc Triage audit. This asymmetry is acceptable: mislabeled issues are recoverable; misbehaved code is not.
 
-## Skills disposition
+## Skills disposition (complete)
+
+This was the v0.1 disposition plan. All actions below have shipped; the table is retained as historical context for future contributors.
 
 | Skill | Disposition |
 |---|---|
