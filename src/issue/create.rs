@@ -100,6 +100,7 @@ pub fn run(args: CreateArgs) -> Result<()> {
         issue_type: args.issue_type.clone(),
         state: final_state.clone(),
         priority: args.priority.clone(),
+        blocker: None,
         blocked_by: blocked_by_sorted.clone(),
         blocks: blocks_sorted.clone(),
         epic: args.epic.clone(),

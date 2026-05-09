@@ -8,6 +8,7 @@ mod issue;
 mod storage;
 mod time;
 
+use issue::blocker::{ClearArgs as BlockerClearArgs, SetArgs as BlockerSetArgs};
 use issue::close::CloseArgs;
 use issue::comment::CommentArgs;
 use issue::create::{BodyInput, CreateArgs, classify_exit_code};
@@ -68,6 +69,39 @@ enum IssueAction {
     Transition(IssueTransitionArgs),
     /// Close an issue terminally to `done` (default) or `dropped`.
     Close(IssueCloseArgs),
+    /// Manage the issue's blocker field.
+    Blocker {
+        #[command(subcommand)]
+        action: BlockerAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum BlockerAction {
+    /// Set the blocker on an issue.
+    Set(BlockerSetCli),
+    /// Clear the blocker on an issue.
+    Clear(BlockerClearCli),
+}
+
+#[derive(Args)]
+struct BlockerSetCli {
+    /// Issue id.
+    id: u64,
+    /// Blocker value: maintainer-input, external, upstream.
+    blocker: String,
+    /// Optional rationale recorded as the blocker-set comment body.
+    #[arg(long)]
+    comment: Option<String>,
+}
+
+#[derive(Args)]
+struct BlockerClearCli {
+    /// Issue id.
+    id: u64,
+    /// Optional rationale recorded as the blocker-cleared comment body.
+    #[arg(long)]
+    comment: Option<String>,
 }
 
 #[derive(Args)]
@@ -337,6 +371,31 @@ fn main() {
                 };
                 map_issue(issue::transition::run(trans_args))
             }
+            IssueAction::Blocker { action } => match action {
+                BlockerAction::Set(args) => {
+                    let set_args = BlockerSetArgs {
+                        repo_root,
+                        actor,
+                        quiet: cli.quiet,
+                        json: cli.json,
+                        id: args.id,
+                        blocker: args.blocker,
+                        comment: args.comment,
+                    };
+                    map_issue(issue::blocker::run_set(set_args))
+                }
+                BlockerAction::Clear(args) => {
+                    let clear_args = BlockerClearArgs {
+                        repo_root,
+                        actor,
+                        quiet: cli.quiet,
+                        json: cli.json,
+                        id: args.id,
+                        comment: args.comment,
+                    };
+                    map_issue(issue::blocker::run_clear(clear_args))
+                }
+            },
             IssueAction::Close(args) => {
                 let body = if let Some(s) = args.comment {
                     BodyInput::Inline(s)

@@ -103,10 +103,13 @@ fn matches_filters(fm: &IssueFrontmatter, body: &str, args: &ListArgs) -> bool {
         }
     }
     if let Some(blockers) = &args.blockers {
-        // The blocker field is not yet on IssueFrontmatter (added in a later
-        // slice). For now this filter matches nothing.
-        let _ = blockers;
-        return false;
+        let bm = match &fm.blocker {
+            Some(b) => blockers.iter().any(|x| x == b),
+            None => blockers.iter().any(|x| x == "unset"),
+        };
+        if !bm {
+            return false;
+        }
     }
     if let Some(priorities) = &args.priorities {
         let pri_match = match &fm.priority {

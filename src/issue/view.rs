@@ -30,6 +30,9 @@ pub fn run(args: ViewArgs) -> Result<()> {
     if let Some(p) = &fm.priority {
         field("priority", p);
     }
+    if let Some(b) = &fm.blocker {
+        field("blocker", b);
+    }
     if let Some(e) = &fm.epic {
         field("epic", e);
     }

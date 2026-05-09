@@ -18,6 +18,8 @@ pub struct IssueFrontmatter {
     pub state: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub priority: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blocker: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blocked_by: Vec<u64>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -107,6 +109,7 @@ mod tests {
             issue_type: "feature".into(),
             state: "pm".into(),
             priority: None,
+            blocker: None,
             blocked_by: vec![],
             blocks: vec![],
             epic: None,
