@@ -131,6 +131,8 @@ R6.2.2 — `dropped` is reachable from any active state — abandonment is alway
 
 R6.2.3 — Every transition produces a `state-change` comment (`storage-model.md#R3.3`) recording `from`, `to`, and the actor.
 
+R6.2.4 — `done` is reachable from any active state via the dedicated close path (`dwarven-cli.md#R6.7`). The per-state graph in R6.2 governs `dwarven issue transition`; closing an issue is a separate, terminal-only escape hatch that mirrors R6.2.2's universal `dropped` reachability. The path constraint (close vs. transition) is the structural enforcement: agents that hold `transition:*` allowlists but not `close:*` cannot bypass an in-graph step (e.g., `implement` cannot jump straight to `done`); agents and the maintainer that hold `close:*` may close from anywhere.
+
 ### R6.3 — Maintainer override
 
 R6.3.1 — The maintainer may force any transition between active states, including ones not in R6.2, by invoking the CLI with an explicit override flag (`dwarven-cli.md`). The override is recorded with a comment explaining why.

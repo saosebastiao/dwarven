@@ -8,6 +8,7 @@ mod issue;
 mod storage;
 mod time;
 
+use issue::close::CloseArgs;
 use issue::comment::CommentArgs;
 use issue::create::{BodyInput, CreateArgs, classify_exit_code};
 use issue::list::{ListArgs, SortField};
@@ -65,6 +66,8 @@ enum IssueAction {
     Comment(IssueCommentArgs),
     /// Transition an issue to a new state.
     Transition(IssueTransitionArgs),
+    /// Close an issue terminally to `done` (default) or `dropped`.
+    Close(IssueCloseArgs),
 }
 
 #[derive(Args)]
@@ -201,6 +204,34 @@ struct IssueCommentArgs {
 }
 
 #[derive(Args)]
+#[command(group(
+    ArgGroup::new("close_body_input")
+        .args(["comment", "comment_file", "comment_stdin"])
+        .multiple(false)
+        .required(true)
+))]
+struct IssueCloseArgs {
+    /// Issue id.
+    id: u64,
+
+    /// Close as `dropped` instead of the default `done`.
+    #[arg(long)]
+    dropped: bool,
+
+    /// Inline closure comment.
+    #[arg(long)]
+    comment: Option<String>,
+
+    /// Read closure comment from a file.
+    #[arg(long, value_name = "PATH")]
+    comment_file: Option<PathBuf>,
+
+    /// Read closure comment from stdin.
+    #[arg(long)]
+    comment_stdin: bool,
+}
+
+#[derive(Args)]
 struct IssueTransitionArgs {
     /// Issue id.
     id: u64,
@@ -305,6 +336,27 @@ fn main() {
                     override_graph: args.r#override,
                 };
                 map_issue(issue::transition::run(trans_args))
+            }
+            IssueAction::Close(args) => {
+                let body = if let Some(s) = args.comment {
+                    BodyInput::Inline(s)
+                } else if let Some(p) = args.comment_file {
+                    BodyInput::File(p)
+                } else if args.comment_stdin {
+                    BodyInput::Stdin
+                } else {
+                    BodyInput::None
+                };
+                let close_args = CloseArgs {
+                    repo_root,
+                    actor,
+                    quiet: cli.quiet,
+                    json: cli.json,
+                    id: args.id,
+                    dropped: args.dropped,
+                    body,
+                };
+                map_issue(issue::close::run(close_args))
             }
             IssueAction::List(args) => match SortField::parse(&args.sort) {
                 Ok(sort) => {

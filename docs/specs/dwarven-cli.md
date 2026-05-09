@@ -137,7 +137,7 @@ R6.7.1 — Terminal transition. Defaults to `done`. `--dropped` flag transitions
 
 R6.7.2 — `--comment <text>` (or via R2.4) is required and recorded as the closure comment.
 
-R6.7.3 — Performs the same legal-transition check as `dwarven issue transition` (`done` reachable from any active state per the transition graph; `dropped` reachable from any active state per `work-states.md#R6.2.2`).
+R6.7.3 — `close` is the terminal-closure escape hatch and accepts both targets from any active state: `done` per `work-states.md#R6.2.4`, `dropped` per `work-states.md#R6.2.2`. Issues already in a terminal state are rejected (R7.4 absorbing). The per-state graph in R6.2 governs `dwarven issue transition`, not `close`.
 
 ### R6.8 — `dwarven issue blocker set <id> <blocker>` / `dwarven issue blocker clear <id>`
 
