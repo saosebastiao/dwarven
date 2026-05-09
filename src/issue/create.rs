@@ -159,6 +159,10 @@ pub fn run(args: CreateArgs) -> Result<()> {
     Ok(())
 }
 
+pub fn validate_type(ty: &str) -> Result<()> {
+    validate_value("type", ty, TYPES)
+}
+
 fn validate_value(field: &str, got: &str, allowed: &[&str]) -> Result<()> {
     if allowed.iter().any(|a| *a == got) {
         Ok(())
@@ -171,7 +175,7 @@ fn validate_value(field: &str, got: &str, allowed: &[&str]) -> Result<()> {
     }
 }
 
-fn validate_title(title: &str) -> Result<()> {
+pub fn validate_title(title: &str) -> Result<()> {
     let trimmed = title.trim();
     if trimmed.is_empty() {
         return Err(UserError("title must not be empty".into()).into());
@@ -186,7 +190,7 @@ fn validate_title(title: &str) -> Result<()> {
     Ok(())
 }
 
-fn validate_epic(epic: &str) -> Result<()> {
+pub fn validate_epic(epic: &str) -> Result<()> {
     if epic.is_empty() {
         return Err(UserError("--epic must not be empty".into()).into());
     }

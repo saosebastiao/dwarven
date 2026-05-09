@@ -12,7 +12,9 @@ use issue::blocker::{ClearArgs as BlockerClearArgs, SetArgs as BlockerSetArgs};
 use issue::close::CloseArgs;
 use issue::comment::CommentArgs;
 use issue::create::{BodyInput, CreateArgs, classify_exit_code};
+use issue::edit::EditArgs;
 use issue::list::{ListArgs, SortField};
+use issue::priority::PriorityArgs;
 use issue::transition::TransitionArgs;
 use issue::view::ViewArgs;
 
@@ -74,6 +76,33 @@ enum IssueAction {
         #[command(subcommand)]
         action: BlockerAction,
     },
+    /// Set the issue's priority (p0/p1/p2). Maintainer-only by convention.
+    Priority(IssuePriorityArgs),
+    /// Edit low-churn frontmatter fields: --title, --type, --epic.
+    Edit(IssueEditArgs),
+}
+
+#[derive(Args)]
+struct IssuePriorityArgs {
+    /// Issue id.
+    id: u64,
+    /// Priority value: p0, p1, p2.
+    priority: String,
+}
+
+#[derive(Args)]
+struct IssueEditArgs {
+    /// Issue id.
+    id: u64,
+    /// New title.
+    #[arg(long)]
+    title: Option<String>,
+    /// New type (spec-gap/feature/bug/arch/doc/chore).
+    #[arg(long = "type")]
+    issue_type: Option<String>,
+    /// New epic slug.
+    #[arg(long)]
+    epic: Option<String>,
 }
 
 #[derive(Subcommand)]
@@ -370,6 +399,28 @@ fn main() {
                     override_graph: args.r#override,
                 };
                 map_issue(issue::transition::run(trans_args))
+            }
+            IssueAction::Priority(args) => {
+                let pri_args = PriorityArgs {
+                    repo_root,
+                    quiet: cli.quiet,
+                    json: cli.json,
+                    id: args.id,
+                    priority: args.priority,
+                };
+                map_issue(issue::priority::run(pri_args))
+            }
+            IssueAction::Edit(args) => {
+                let edit_args = EditArgs {
+                    repo_root,
+                    quiet: cli.quiet,
+                    json: cli.json,
+                    id: args.id,
+                    title: args.title,
+                    issue_type: args.issue_type,
+                    epic: args.epic,
+                };
+                map_issue(issue::edit::run(edit_args))
             }
             IssueAction::Blocker { action } => match action {
                 BlockerAction::Set(args) => {
