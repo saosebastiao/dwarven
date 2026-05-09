@@ -15,3 +15,23 @@ pub fn iso_filename(ts: &DateTime<Utc>) -> String {
 pub fn now_utc() -> DateTime<Utc> {
     Utc::now()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::TimeZone;
+
+    fn fixed() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 5, 9, 10, 30, 7).unwrap()
+    }
+
+    #[test]
+    fn frontmatter_has_seconds_and_z() {
+        assert_eq!(iso_frontmatter(&fixed()), "2026-05-09T10:30:07Z");
+    }
+
+    #[test]
+    fn filename_has_no_colons_minute_precision() {
+        assert_eq!(iso_filename(&fixed()), "2026-05-09T1030Z");
+    }
+}
