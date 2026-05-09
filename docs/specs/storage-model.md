@@ -109,8 +109,8 @@ author: spec                        # agent name or "maintainer"
 kind: comment                       # one of {comment, state-change, blocker-set, blocker-cleared}
 created: 2026-05-09T10:30:00Z       # ISO 8601, UTC
 # state-change-only fields:
-from: agent:review                  # required iff kind == state-change
-to: agent:doc                       # required iff kind == state-change
+from: review                        # required iff kind == state-change; sentinel `created` for the initial creation event
+to: doc                             # required iff kind == state-change
 # blocker-only fields:
 blocker: maintainer-input           # required iff kind ∈ {blocker-set, blocker-cleared}
 ---
@@ -121,6 +121,8 @@ R4.4.1 — `seq` must match the leading integer in the comment's filename (R2.2)
 R4.4.2 — Comment filenames are `<seq>-<iso>-<author>.md` where `<seq>` is the three-digit zero-padded sequence, `<iso>` is `YYYY-MM-DDTHHMMZ` (no colons, for filename safety), and `<author>` is the same value as the frontmatter `author` field.
 
 R4.4.3 — `kind` defaults to `comment`. State changes and blocker events use the dedicated kinds so the hub can index them efficiently.
+
+R4.4.4 — Issue creation produces a `kind: state-change` comment with `from: created` and `to: <initial-state>`. The literal string `created` is the only permitted non-state value for `from`; it marks the comment as the synthetic transition into the initial state. Filtering an issue's comments to `kind: state-change` and ordering by `seq` therefore yields the complete state history including creation.
 
 ---
 
