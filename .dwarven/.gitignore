@@ -1,0 +1,8 @@
+# Derived state owned by the dwarven daemon. Per coordination-hub.md#R8.4
+# the SQLite index is single-machine and rebuilt from the canonical files
+# in this directory; it must not be committed.
+.index.sqlite
+.index.sqlite-*
+
+# Daemon PID file. Per coordination-hub.md#R3.5.
+.daemon.pid

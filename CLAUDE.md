@@ -2,129 +2,140 @@
 
 ## What this is
 
-Dwarven is a Claude Code plugin for **specification-driven development** with **strongly decoupled agents** and **GitHub as the coordination surface**. The architecture is locked; implementation is in progress against the inherited content in `agents/`, `skills/`, `commands/`, and `hooks/`.
+Dwarven is a **host-agnostic system for specification-driven development** with **strongly decoupled agents** and a **local coordination hub**. The project is mid-pivot (announced 2026-05-09): the v2 architecture replaces the inherited v0.1 design (Claude-Code-only, GitHub-coupled). v2 specifications are drafted; implementation has not started.
 
-The full architecture is documented in `README.md`. This file is the load-bearing in-session reference: design decisions with rationale, working conventions, and pointers. Don't relitigate locked decisions without evidence of changed circumstances.
+The full v2 architecture is documented in `README.md` and decomposed across `docs/specs/*.md` (top-level + 9 constituent specs). This file is the load-bearing in-session reference: design decisions with rationale, working conventions, what's stale vs. settled, and pointers.
 
 ## Working state
 
 | Area | Status |
 |---|---|
-| Architecture | Locked. Source of truth: `docs/specs/dwarven.md` (R1–R11). |
-| Agent definitions (`agents/`) | All 10 written per R3.1–R3.10. |
-| Skills (`skills/`) | 8 in place: 7 cross-cutting per R7.2 + 1 maintainer-invoked (`repository-setup`, R8). Folding work complete. |
-| Slash commands (`commands/`) | All 10 in place; deprecated inherited stubs deleted. |
-| Repository setup skill | Implemented at `skills/repository-setup/` — not yet run against any target repo (including this one). |
-| Hooks | SessionStart + PreToolUse both registered. PreToolUse enforces R6.5 universal never-list. |
-| Per-agent permission enforcement | `.claude/settings.json` is project-wide; per-agent restrictions (shell vs. agent; Implementation vs. `main`; etc.) require subagent context in hook input — targeted for follow-up. |
-| CI detached dispatch | v0.2+ target. |
-| Dwarven's own scaffolding | `docs/specs/dwarven.md`, `docs/CHANGELOG.md`, `docs/architecture/`, `docs/plans/` exist. GitHub-side scaffolding (label set, issue/PR templates, branch protection) lands when `repository-setup` first runs against this repo. |
+| v2 architecture | **Specs drafted, not yet locked.** Source of truth: `docs/specs/dwarven.md` plus 9 constituent specs listed in its frontmatter. The "architecture is locked" framing from v0.1 is **stale**. |
+| `dwarven` Rust binary | Skeleton + `dwarven init` shipped (slice 1, see `docs/plans/2026-05-09-bootstrap-dwarven-init.md`). `Cargo.toml`, `src/main.rs`, `src/init.rs`. Builds clean; manual verification passed. |
+| `.dwarven/` storage layout | Specified in `docs/specs/storage-model.md`. **Not yet bootstrapped in this repo** — next session should run `dwarven init` here and commit the result before further implementation. |
+| `dwarven issue *` subcommands | Not started. **Next implementation slice.** Start with `issue create` (exercises ID assignment, frontmatter writing, atomic ops); then `view`, `list`, `transition`, `comment`, `blocker`, etc. per `dwarven-cli.md#R6`. |
+| Daemon, HTTP API, web UI | Not started. v1 deliverable, after issue CRUD. |
+| Claude Code adapter | Not started. v1 deliverable. Will materialize agents to `.claude/agents/`, slash commands to `.claude/commands/`, hooks to `.claude/hooks/`, settings to `.claude/settings.json`. Deferred until issue CRUD exists so each agent's materialization can be filed as its own issue. |
+| opencode adapter | v3 deliverable. |
+| Dep-graph scheduler | v2 deliverable. |
+| Inherited `agents/`, `skills/`, `commands/`, `hooks/` | Implement v0.1 (GH-coupled, CC-only). **Stale**. Do not refactor; they will be replaced wholesale as v1 implementation lands. Flagged with `STALE.md` markers. |
 
-## Architectural decisions (locked, with rationale)
+## The pivot (2026-05-09)
 
-### Agent model: everything is a subagent
+The project was announced as a Claude Code plugin coupled to GitHub. After the v0.1 implementation reached the milestone documented in earlier git history, the maintainer announced a substantial pivot:
 
-Every agent role is implemented as a Claude Code subagent (`agents/<name>.md`) with its own system prompt and tool allowlist. Decoupling lives in the dispatch mechanism — an agent **cannot** mid-session become a different agent; it can only dispatch a bounded subagent that returns a single result.
+1. **Decouple from GitHub.** Replace `gh` CLI + GH issues/PRs/labels with a lightweight local server + UI backed by file-based storage.
+2. **Dynamic dep-graph prioritization.** Priorities driven by both product priority *and* downstream-unblocking value.
+3. **Multi-host.** Target Claude Code (v1) and opencode (v3), not CC only.
 
-*Why this over single-session-per-agent:* subagent isolation is one-directional (child fresh, parent not), but the parent here is the maintainer's thin shell which holds no work-specific context. We get the strongest mechanism-level guarantee Claude Code offers.
+The v2 specs reflect this pivot end-to-end. When you read code/files/comments referencing `gh issue *`, `agent:*` labels, or "GitHub as the coordination surface," that content is from v0.1 and is being retired.
 
-*Why this over a work-picker pattern:* a picker accumulates context across dispatches — exactly the drift we adopted this model to avoid.
+## Architectural decisions (v2, with rationale)
 
-### Maintainer shell: thin, explicit routing
+### Files are the source of truth
 
-The maintainer's top-level session has tools `Agent`, `Read`, and read-only `Bash` (`git log`, `git diff`, `git status`, `gh issue view`, `gh issue list`, `gh pr view`, `gh pr list`, `gh label list`). It cannot write. All actions go through explicit slash commands. Bare maintainer messages get read-based orientation only — the shell never dispatches without a slash command.
+Hub-tracked artifacts (issues, comments, state transitions, dependency edges) live as Markdown files with frontmatter under `.dwarven/`, committed alongside code. SQLite is a derived index for fast queries and the web UI; it is reproducible from files at any time.
 
-*Why explicit over inferred:* silent misrouting is the dominant failure mode of inferred routing. Explicit routing costs a few keystrokes and removes that class of drift.
+*Why files over DB-canonical:* maintainer-readable, git-diffable, PR-able, branch-scoped, no DB-vs-file sync nightmares. The escape hatch is just opening the file in your editor.
 
-### GitHub interaction: `gh` CLI, no MCP
+### CLI ↔ daemon split
 
-Every agent that touches GitHub uses `gh` CLI via Bash with per-agent scoped patterns (e.g., `Bash(gh issue create:*)`). No MCP GitHub server dependency.
+The `dwarven` CLI is filesystem-only — no SQLite access. The daemon owns SQLite, HTTP, web UI, and the file watcher. CLI works fully without daemon; daemon is required only for the web UI.
 
-*Why not MCP:* MCP adds a server dependency, install friction, and an extra auth layer. `gh` works zero-setup once `gh auth login` is done. Bash pattern allowlists are sufficiently granular per agent. If MCP wins later, we can add it as a thin abstraction without touching agent definitions.
+*Why this split:* CLI is robust regardless of daemon state. No CLI-vs-daemon write coordination. Trade-off: CLI list operations are O(n) file reads, fine at hundreds-of-issues scale.
 
-### Spec versioning: flat for v0.1, directory-per-major later
+### Agents talk to the hub via CLI only
 
-`docs/specs/*.md` flat. `docs/CHANGELOG.md` from v0.1.0. On the first breaking spec change, migrate `docs/specs/*` to `docs/specs/v1/`; new version goes to `docs/specs/v2/`. Migration is a `git mv`; no tooling needed until then. Annotations-for-minor and changelog-for-patch conventions are documented but not used until they matter.
+Per `dwarven.md#R2.10`: agents use `dwarven` CLI exclusively, not the HTTP API. The web UI uses the HTTP API; agents do not.
 
-### Dialogue when detached: GitHub state
+*Why CLI-only for agents:* per-agent allowlist patterns stay granular and host-portable (`Bash(dwarven --actor spec issue view:*)`). HTTP would weaken allowlist enforcement.
 
-Subagents are one-shot — they cannot converse with the maintainer across invocations. Two paths:
+### Actor attribution at the allowlist boundary
 
-- **Interactive dispatch** (from the shell): subagent uses `AskUserQuestion` to clarify mid-run.
-- **Detached dispatch** (by hook, v0.2+): subagent writes a structured comment + `blocker:*` + swaps the issue to `agent:maintainer` + exits. Maintainer answers in the issue; next dispatch reads the new state.
+Each agent's allowlist patterns embed `--actor <agent-name>` literally (e.g., `Bash(dwarven --actor spec issue view:*)`). Per-host adapters generate these patterns when materializing the agent definitions.
 
-`AskUserQuestion` is allowlisted only on dialogue agents (Spec, Architect, Gap, PM, Planning). Discrete-work agents (Test Dev, Implementation, Review, Doc, Triage) escalate structurally — never synchronously.
+*Why baked into patterns:* attribution is structural, not prompt-level. An agent cannot fake another agent's actor name.
 
-### Repository-setup scope: standard + retrofit
+### State == owner
 
-The `repository-setup` skill is **standard scope** (file scaffolding + label set + issue/PR templates + `.claude/settings.json` + slash command registration + `main` branch protection + SessionStart and PreToolUse hooks) and **retrofit-capable** (detects existing structure, non-destructive merge, diff preview before any write). CI dispatch workflows are deferred to v0.2+.
+The `state` field on an issue IS who currently owns the issue (the next required action). One field, one concept. Single-owner is structural — a value cannot represent two simultaneous owners.
 
-## Agent roster (target)
+*Why merged:* v0.1 had `agent:*` labels that doubled as ownership; the new model just makes that structural. Cleaner mental model, fewer fields to keep in sync.
 
-10 agents, each defined in `agents/<name>.md`. See README "The agent roster" for the table. Full I/O contracts (trigger, reads, writes, allowlist shape, exit conditions, scope fences) live in each agent file.
+### Dependency edges in issue frontmatter
 
-**Branch convention:** `feat/<issue-number>-<slug>`. Test Dev creates, Implementation carries, Review merges (does not delete).
+`blocks: [N, M]` and `blocked_by: [P]` live in the issue frontmatter on both endpoints. No separate edge files. Asymmetric edges are flagged by the hub for triage.
 
-**Direct commits to `main`** are allowed only for Spec, Architect, and Doc (per spec).
+*Why frontmatter over separate files:* easy to read; one fewer artifact type; both endpoints discoverable from each issue.
 
-**Hard "never" list, applies to every agent:** force pushes, `git reset --hard`, `git checkout -- .`, `git restore .`, `git clean -f*`, `rm -rf*`, `gh repo *` (mutating), `gh release delete *`, direct `git push origin main` for any agent except Spec/Architect/Doc.
+### PR concept subsumed into the issue
 
-## Label protocol
+There is no separate "PR" artifact. Implementation pushes its branch and comments on the issue with branch info. Code Review uses `git diff main..feat/<id>-<slug>` and merges directly via `git merge`. The issue thread holds review discussion.
 
-See README "Labels" for the full taxonomy. Working notes:
+*Why no PR:* GitHub coupling is gone; introducing a parallel PR artifact in the hub doubles the model. The issue is the unit of work.
 
-- **Single-owner rule.** Exactly one `agent:*` per open issue. Multi-owner is forbidden — if parallel work is needed, spawn sibling issues.
-- **Label writes are prompt-level, not mechanism-level.** GitHub doesn't expose per-user label permissions, and Bash patterns can't distinguish `gh label add agent:foo` from `gh label add agent:bar`. Discipline is enforced by agent system prompts and post-hoc Triage audit. This asymmetry is acceptable: mislabeled issues are recoverable; misbehaved code is not.
+### Maintainer override is absolute
 
-## Skills disposition (complete)
+The dep-graph scheduler computes effective priority. The maintainer can override per issue with an absolute number that bypasses computation entirely.
 
-This was the v0.1 disposition plan. All actions below have shipped; the table is retained as historical context for future contributors.
+*Why absolute over relative:* simplest to implement and reason about. Relative ("rank above issue X") is more natural but adds a constraint solver.
 
-| Skill | Disposition |
+### Multi-host via thin adapters
+
+The agent roster is host-agnostic. Per-host adapters materialize the abstract definitions onto the host's primitives. v1 ships the Claude Code adapter; v3 adds opencode.
+
+*Why host-agnostic:* avoids vendor lock-in; the agent contracts are the load-bearing part, the host integration is mechanical.
+
+## Spec disposition
+
+The v2 specs are ten Markdown files under `docs/specs/`:
+
+| Spec | Concern |
 |---|---|
-| `brainstorming` | Fold (hybrid) → Spec + Architect; delete |
-| `dispatching-parallel-agents` | Keep cross-cutting (minor update for Agent tool reference) |
-| `executing-plans` | Fold (hybrid) → Implementation; delete |
-| `finishing-a-development-branch` | Fold (hybrid) → Implementation + Review; delete |
-| `receiving-code-review` | Fold (hybrid) → Implementation; delete |
-| `requesting-code-review` | Fold (hybrid) → Implementation; delete |
-| `subagent-driven-development` | Delete (the architecture IS this; rationale moves to `docs/architecture/`) |
-| `systematic-debugging` | Keep cross-cutting |
-| `test-driven-development` | Keep cross-cutting (invoked by Test Dev RED, Implementation GREEN/REFACTOR) |
-| `using-dwarven` | Keep + major rewrite (must teach new shell + agent + slash-command model) |
-| `using-git-worktrees` | Keep cross-cutting |
-| `verification-before-completion` | Keep cross-cutting |
-| `writing-plans` | Fold (hybrid) → Planning; delete |
-| `writing-skills` | Keep cross-cutting (meta) |
+| `dwarven.md` | Top-level: identity, invariants, architecture overview, constituent index. |
+| `storage-model.md` | On-disk artifact format, directory layout, sync model. |
+| `work-states.md` | State/type/blocker/priority vocabulary; transition graph. |
+| `coordination-hub.md` | Hub binary: lifecycle, file watcher, SQLite ownership, config schema. |
+| `dwarven-cli.md` | CLI surface: subcommands, flags, allowlist patterns, exit codes. |
+| `web-api.md` | Local HTTP API consumed by the web UI. |
+| `web-ui.md` | Web UI screens, flows, real-time updates. |
+| `dialogue.md` | Interactive vs. detached agent-maintainer dialogue protocol. |
+| `agent-roster.md` | Ten agents: trigger, I/O, allowlist, exit conditions, scope fences. |
+| `host-adapter.md` | Host-agnostic contract + Claude Code adapter (v1) + opencode sketch (v3). |
+| `dep-graph.md` | Dependency model and prioritization algorithm (v2). |
 
-**Fold style:** hybrid — verbatim copy of timeless-discipline content into agent prompts (TDD framing, verification checklists), first-principles rewrite for flow-control content tangled with the old single-session pattern.
-
-*Rationale for delete-rather-than-rewrite:* CLAUDE.md (this file) says skill rewrites need eval evidence. We have none. Folding into a fresh agent prompt is a new write, not a rewrite of an eval-tested skill.
+Cross-references use `<spec>.md#R<n>`. Top-level spec wins on conflicts.
 
 ## Working conventions
 
-### Patterns to use in agent system prompts
+### Don't refactor inherited v0.1 code
 
-- **Red Flags tables** — "what you might be thinking vs. reality" anti-rationalization framing. Use where shortcut-thinking is a real risk for the agent.
-- **HARD-GATE / EXTREMELY-IMPORTANT framing** — explicit blocks for procedural gates that are load-bearing (e.g., "do not exit before committing").
-- **One question at a time + 2-3 alternatives + your lean** — dialogue discipline for Spec + Architect.
+`agents/`, `skills/`, `commands/`, and `hooks/` implement the v0.1 GH-coupled architecture. Do not refactor in place. The v1 implementation will materialize fresh agent definitions via the Claude Code adapter (`docs/specs/host-adapter.md#R3`). Any changes to inherited code now are wasted effort.
+
+If you must reference inherited content for context, treat it as historical.
+
+### Patterns to use in agent system prompts (carried forward from v0.1)
+
+- **Red Flags tables** — "what you might be thinking vs. reality" anti-rationalization framing.
+- **HARD-GATE / EXTREMELY-IMPORTANT framing** — explicit blocks for procedural gates that are load-bearing.
+- **One question at a time + 2-3 alternatives + your lean** — dialogue discipline for Spec + Architect + other dialogue agents (`dialogue.md#R3.2`, `dialogue.md#R5.1`).
 - **Self-review pass** — after writing a doc, scan for placeholders, contradictions, scope drift, ambiguity. Required for Spec, Architect, Planning, Doc.
 - **Verification before completion** — every agent ends with verification.
-- **Process-flow DOT diagrams** — for state machines in agent and skill docs.
 
 ### Terminology
 
 - **"Your human partner"** — not "the user." Deliberate.
-- **Maintainer** — the human who owns the project; singular for v0.1.
-- **Agent** — a defined role (system prompt + tool allowlist + scope). Implemented as a Claude Code **subagent**. Use "agent" for the concept; "subagent" only when emphasizing the dispatch mechanism.
-- **Shell** — the maintainer's top-level Claude Code session.
-- **Pipeline** — spec → gap → PM → plan → test → implement → review → doc.
-- **Dispatch** — invoking a subagent (via slash command or hook).
-- **Gap** — a disagreement between spec and docs/code, surfaced by Gap Analysis.
+- **Maintainer** — the human who owns the project; singular for v1.
+- **Agent** — a defined role (system prompt + tool allowlist + scope). Implemented per host as a subagent.
+- **Shell** — the host's top-level session.
+- **Hub** — the local coordination daemon (Rust binary).
+- **Pipeline** — spec → gap → pm → plan → test → implement → review → doc.
+- **Dispatch** — invoking an agent (via slash command or, in v1.1+, by hook event).
+- **Gap** — disagreement between spec and docs/code, surfaced by Gap Analysis.
 
 ### Skills are behavior-shaping code, not prose
 
-Changes to Red Flags tables, rationalization lists, and "EXTREMELY_IMPORTANT" framing need eval evidence. This is why we **fold-and-delete** rather than rewrite inherited skills in place when they don't fit the new architecture — folding into a new agent prompt is a fresh write, not a rewrite of an eval-tested skill.
+Changes to Red Flags tables, rationalization lists, and "EXTREMELY-IMPORTANT" framing need eval evidence. When folding inherited skills into agent prompts, prefer fresh writes to in-place rewrites of behavior-shaping content.
 
 ### TDD is RED-GREEN-REFACTOR
 
@@ -132,29 +143,25 @@ Test Dev writes failing tests; Implementation drives green then refactors. Test 
 
 ### Process before implementation
 
-In the pipeline, Spec / Architect / Gap Analysis / PM / Planning all run upstream of Test Dev and Implementation. Don't shortcut to Implementation when an upstream gap is the actual problem. Use `systematic-debugging` before reaching for fixes.
+In the pipeline, Spec / Architect / Gap / PM / Planning all run upstream of Test Dev and Implementation. Don't shortcut to Implementation when an upstream gap is the actual problem.
 
 ### One problem per branch
 
-Describe the problem, not just the change. Branches are `feat/<issue-number>-<slug>` and are merged (not deleted) by Review.
+Describe the problem, not just the change. Branches are `feat/<id>-<slug>` and are merged (not deleted) by Code Review.
 
 ## Working in this repo
 
-- Specs live under `docs/specs/` (currently empty; the first spec is the Dwarven plugin's own behavior — to be written).
-- Plans live under `docs/plans/` (currently empty).
-- Architecture docs live under `docs/architecture/` (currently empty).
-- The `using-dwarven` skill is auto-loaded by the SessionStart hook (`hooks/hooks.json`) — currently the inherited version; rewrite pending.
-- A scratchpad at `prompts/todo.local.md` (gitignored) captures the maintainer's working notes; do not cite as authoritative.
+- **Specs:** `docs/specs/*.md` — ten v2 specs as listed above.
+- **Plans:** `docs/plans/` (currently empty; populated as implementation issues are planned).
+- **Architecture:** `docs/architecture/` (currently empty; populated as design decisions are made).
+- **Changelog:** `docs/CHANGELOG.md` — v2.0.0 onward.
+- **Inherited (stale):** `agents/`, `skills/`, `commands/`, `hooks/` — see "Don't refactor inherited v0.1 code" above.
+- **Maintainer scratchpad:** `prompts/todo.local.md` (gitignored); not authoritative.
 
 ## Pointers
 
-- `README.md` — public guiding document with the full architecture
-- `agents/` — agent definitions (subagent system prompts, tool allowlists)
-- `skills/` — cross-cutting skills (per disposition table above)
-- `commands/` — slash command definitions
-- `hooks/` — SessionStart and PreToolUse hooks
-- `docs/specs/` — what the system should do (per major version)
-- `docs/architecture/` — how the system should solve the spec
-- `docs/plans/` — per-issue implementation plans
-- `docs/CHANGELOG.md` — change log
-- `.claude/settings.json` — per-agent tool/path permissions
+- `README.md` — public guiding document with the v2 architecture
+- `docs/specs/dwarven.md` — top-level spec; lists constituents
+- `docs/specs/agent-roster.md` — full I/O contracts for the ten agents
+- `docs/specs/host-adapter.md` — Claude Code adapter (v1) materialization spec
+- `docs/CHANGELOG.md` — change log (v2.0.0 forward)

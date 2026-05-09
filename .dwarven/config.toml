@@ -1,0 +1,25 @@
+# Dwarven hub configuration. Schema: coordination-hub.md#R10.
+
+[repo]
+id = "30fbb225-a67e-4340-9e75-9dba26b74484"
+name = "dwarven"
+
+[counters]
+next_issue_id = 1
+
+[daemon]
+port = 7777
+bind = "127.0.0.1"
+reconciliation_interval_seconds = 60
+
+[scheduler]
+alpha = 0.5
+
+[scheduler.priority_weights]
+p0 = 4
+p1 = 2
+p2 = 1
+unset = 1
+
+[triage]
+stale_threshold_days = 14

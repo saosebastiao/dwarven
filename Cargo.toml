@@ -1,0 +1,23 @@
+[package]
+name = "dwarven"
+version = "0.0.1"
+edition = "2024"
+description = "Host-agnostic system for specification-driven software development with strongly decoupled agents and a local coordination hub"
+license = "MIT"
+repository = "https://github.com/danieltoone/dwarven"
+readme = "README.md"
+
+[[bin]]
+name = "dwarven"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+toml = "0.8"
+uuid = { version = "1.10", features = ["v4"] }
+
+[profile.release]
+lto = "thin"
+strip = true
