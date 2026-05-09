@@ -3,11 +3,13 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{ArgGroup, Args, Parser, Subcommand};
 
+mod config;
 mod init;
 mod issue;
 mod storage;
 mod time;
 
+use config::{GetArgs as ConfigGetArgs, SetArgs as ConfigSetArgs};
 use issue::blocker::{ClearArgs as BlockerClearArgs, SetArgs as BlockerSetArgs};
 use issue::close::CloseArgs;
 use issue::comment::CommentArgs;
@@ -56,6 +58,34 @@ enum Command {
         #[command(subcommand)]
         action: IssueAction,
     },
+
+    /// Read or write `.dwarven/config.toml`.
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// Read a config value by dotted key (e.g. `daemon.port`).
+    Get(ConfigGetCli),
+    /// Set a config value by dotted key.
+    Set(ConfigSetCli),
+}
+
+#[derive(Args)]
+struct ConfigGetCli {
+    /// Dotted key path.
+    key: String,
+}
+
+#[derive(Args)]
+struct ConfigSetCli {
+    /// Dotted key path.
+    key: String,
+    /// New value (parsed as int → float → bool → string).
+    value: String,
 }
 
 #[derive(Subcommand)]
@@ -378,6 +408,27 @@ fn main() {
 
     let result: Result<i32> = match cli.command {
         Command::Init { host } => init::run(&repo_root, &host, cli.quiet).map(|_| 0),
+        Command::Config { action } => match action {
+            ConfigAction::Get(args) => {
+                let g = ConfigGetArgs {
+                    repo_root,
+                    quiet: cli.quiet,
+                    json: cli.json,
+                    key: args.key,
+                };
+                map_issue(config::run_get(g))
+            }
+            ConfigAction::Set(args) => {
+                let s = ConfigSetArgs {
+                    repo_root,
+                    quiet: cli.quiet,
+                    json: cli.json,
+                    key: args.key,
+                    value: args.value,
+                };
+                map_issue(config::run_set(s))
+            }
+        },
         Command::Issue { action } => match action {
             IssueAction::Create(args) => {
                 let body = if let Some(s) = args.body {
