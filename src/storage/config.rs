@@ -28,6 +28,10 @@ impl RepoPaths {
         self.dwarven_dir().join(".config.lock")
     }
 
+    pub fn index_path(&self) -> PathBuf {
+        self.dwarven_dir().join(".index.sqlite")
+    }
+
     pub fn issues_dir(&self) -> PathBuf {
         self.dwarven_dir().join("issues")
     }

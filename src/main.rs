@@ -4,12 +4,14 @@ use anyhow::Result;
 use clap::{ArgGroup, Args, Parser, Subcommand};
 
 mod config;
+mod index;
 mod init;
 mod issue;
 mod storage;
 mod time;
 
 use config::{GetArgs as ConfigGetArgs, SetArgs as ConfigSetArgs};
+use index::ReindexArgs;
 use issue::blocker::{ClearArgs as BlockerClearArgs, SetArgs as BlockerSetArgs};
 use issue::close::CloseArgs;
 use issue::comment::CommentArgs;
@@ -64,6 +66,9 @@ enum Command {
         #[command(subcommand)]
         action: ConfigAction,
     },
+
+    /// Rebuild the SQLite index from `.dwarven/` files.
+    Reindex,
 }
 
 #[derive(Subcommand)]
@@ -408,6 +413,11 @@ fn main() {
 
     let result: Result<i32> = match cli.command {
         Command::Init { host } => init::run(&repo_root, &host, cli.quiet).map(|_| 0),
+        Command::Reindex => map_issue(index::run(ReindexArgs {
+            repo_root,
+            quiet: cli.quiet,
+            json: cli.json,
+        })),
         Command::Config { action } => match action {
             ConfigAction::Get(args) => {
                 let g = ConfigGetArgs {
