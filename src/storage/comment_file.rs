@@ -1,12 +1,13 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 
-use anyhow::{Context, Result};
-use serde::Serialize;
+use anyhow::{Context, Result, anyhow};
+use serde::{Deserialize, Serialize};
 
 use super::atomic::write_atomic;
 
 /// Comment frontmatter per `storage-model.md#R4.4`.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommentFrontmatter {
     pub seq: u32,
     pub issue: u64,
@@ -88,4 +89,47 @@ pub fn write_comment(path: &Path, file: &CommentFile) -> Result<()> {
         }
     }
     write_atomic(path, out.as_bytes())
+}
+
+pub fn read_comment(path: &Path) -> Result<CommentFile> {
+    let raw = fs::read_to_string(path)
+        .with_context(|| format!("reading {}", path.display()))?;
+    let stripped = raw
+        .strip_prefix("---\n")
+        .ok_or_else(|| anyhow!("{} is not a frontmatter document", path.display()))?;
+    let end = stripped
+        .find("\n---\n")
+        .ok_or_else(|| anyhow!("{} missing frontmatter terminator", path.display()))?;
+    let yaml = &stripped[..end + 1];
+    let body = &stripped[end + "\n---\n".len()..];
+    let frontmatter: CommentFrontmatter = serde_yaml::from_str(yaml)
+        .with_context(|| format!("parsing comment frontmatter in {}", path.display()))?;
+    Ok(CommentFile {
+        frontmatter,
+        body: body.to_string(),
+    })
+}
+
+/// Read all comments under a `comments/` directory, sorted by `seq` ascending.
+pub fn list_comments(comments_dir: &Path) -> Result<Vec<CommentFile>> {
+    let mut comments = Vec::new();
+    if !comments_dir.exists() {
+        return Ok(comments);
+    }
+    for entry in fs::read_dir(comments_dir)
+        .with_context(|| format!("reading {}", comments_dir.display()))?
+    {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !name.ends_with(".md") || name.starts_with('.') {
+            continue;
+        }
+        comments.push(read_comment(&entry.path())?);
+    }
+    comments.sort_by_key(|c| c.frontmatter.seq);
+    Ok(comments)
 }

@@ -9,6 +9,8 @@ mod storage;
 mod time;
 
 use issue::create::{BodyInput, CreateArgs, classify_exit_code};
+use issue::list::{ListArgs, SortField};
+use issue::view::ViewArgs;
 
 #[derive(Parser)]
 #[command(name = "dwarven", version, about, long_about = None)]
@@ -53,6 +55,10 @@ enum Command {
 enum IssueAction {
     /// Create a new issue.
     Create(IssueCreateArgs),
+    /// View an issue and its comments.
+    View(IssueViewArgs),
+    /// List issues, optionally filtered.
+    List(IssueListArgs),
 }
 
 #[derive(Args)]
@@ -103,6 +109,67 @@ struct IssueCreateArgs {
     epic: Option<String>,
 }
 
+#[derive(Args)]
+struct IssueViewArgs {
+    /// Issue id.
+    id: u64,
+
+    /// Suppress comments; print issue header + body only.
+    #[arg(long)]
+    no_comments: bool,
+
+    /// Filter comments to state-change records only.
+    #[arg(long)]
+    state_history: bool,
+
+    /// Show only the most recent N comments.
+    #[arg(long, value_name = "N")]
+    last: Option<usize>,
+}
+
+#[derive(Args)]
+struct IssueListArgs {
+    /// Comma-separated states to include (e.g. plan,test).
+    #[arg(long, value_delimiter = ',')]
+    state: Vec<String>,
+
+    /// Comma-separated types to include.
+    #[arg(long = "type", value_delimiter = ',')]
+    types: Vec<String>,
+
+    /// Comma-separated blockers to include.
+    #[arg(long, value_delimiter = ',')]
+    blocker: Vec<String>,
+
+    /// Comma-separated priorities to include (use 'unset' to match issues with no priority).
+    #[arg(long, value_delimiter = ',')]
+    priority: Vec<String>,
+
+    /// Restrict to a single epic slug.
+    #[arg(long)]
+    epic: Option<String>,
+
+    /// Show only active issues (default).
+    #[arg(long)]
+    open: bool,
+
+    /// Show only terminal-state issues (done, dropped).
+    #[arg(long)]
+    closed: bool,
+
+    /// Show all issues regardless of state.
+    #[arg(long)]
+    all: bool,
+
+    /// Literal-string filter against title and body.
+    #[arg(long)]
+    grep: Option<String>,
+
+    /// Sort field: id, created, updated, priority. Default: updated.
+    #[arg(long, default_value = "updated")]
+    sort: String,
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -146,15 +213,41 @@ fn main() {
                     blocks: args.blocks,
                     epic: args.epic,
                 };
-                match issue::create::run(create_args) {
-                    Ok(()) => Ok(0),
-                    Err(e) => {
-                        let code = classify_exit_code(&e);
-                        eprintln!("error: {e:#}");
-                        Ok(code)
-                    }
-                }
+                map_issue(issue::create::run(create_args))
             }
+            IssueAction::View(args) => {
+                let view_args = ViewArgs {
+                    repo_root,
+                    id: args.id,
+                    no_comments: args.no_comments,
+                    state_history: args.state_history,
+                    last: args.last,
+                };
+                map_issue(issue::view::run(view_args))
+            }
+            IssueAction::List(args) => match SortField::parse(&args.sort) {
+                Ok(sort) => {
+                    let list_args = ListArgs {
+                        repo_root,
+                        states: opt_vec(args.state),
+                        types: opt_vec(args.types),
+                        blockers: opt_vec(args.blocker),
+                        priorities: opt_vec(args.priority),
+                        epic: args.epic,
+                        open: args.open,
+                        closed: args.closed,
+                        all: args.all,
+                        grep: args.grep,
+                        sort,
+                    };
+                    map_issue(issue::list::run(list_args))
+                }
+                Err(e) => {
+                    let code = classify_exit_code(&e);
+                    eprintln!("error: {e:#}");
+                    Ok(code)
+                }
+            },
         },
     };
 
@@ -165,6 +258,21 @@ fn main() {
             std::process::exit(2);
         }
     }
+}
+
+fn map_issue(r: Result<()>) -> Result<i32> {
+    match r {
+        Ok(()) => Ok(0),
+        Err(e) => {
+            let code = classify_exit_code(&e);
+            eprintln!("error: {e:#}");
+            Ok(code)
+        }
+    }
+}
+
+fn opt_vec(v: Vec<String>) -> Option<Vec<String>> {
+    if v.is_empty() { None } else { Some(v) }
 }
 
 fn resolve_actor(flag: Option<String>) -> String {

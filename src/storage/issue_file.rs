@@ -50,6 +50,31 @@ pub fn write_issue(path: &Path, file: &IssueFile) -> Result<()> {
     write_atomic(path, out.as_bytes())
 }
 
+/// Enumerate all issue IDs present under `.dwarven/issues/`. Sub-directory
+/// names that don't parse as positive integers are skipped (no error).
+/// Returns IDs sorted ascending.
+pub fn enumerate_issue_ids(issues_dir: &Path) -> Result<Vec<u64>> {
+    let mut ids = Vec::new();
+    if !issues_dir.exists() {
+        return Ok(ids);
+    }
+    let entries = fs::read_dir(issues_dir)
+        .with_context(|| format!("reading {}", issues_dir.display()))?;
+    for entry in entries {
+        let entry = entry?;
+        if !entry.file_type()?.is_dir() {
+            continue;
+        }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if let Ok(id) = name.parse::<u64>() {
+            ids.push(id);
+        }
+    }
+    ids.sort_unstable();
+    Ok(ids)
+}
+
 pub fn read_issue(path: &Path) -> Result<IssueFile> {
     let raw = fs::read_to_string(path)
         .with_context(|| format!("reading {}", path.display()))?;
