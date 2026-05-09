@@ -110,6 +110,35 @@ pub fn read_comment(path: &Path) -> Result<CommentFile> {
     })
 }
 
+/// Compute the next available comment sequence number by scanning filenames
+/// for the leading numeric prefix. Returns 1 for an empty (or absent)
+/// directory. Caller must hold the repo lock to make seq allocation atomic
+/// across concurrent writers.
+pub fn next_comment_seq(comments_dir: &Path) -> Result<u32> {
+    if !comments_dir.exists() {
+        return Ok(1);
+    }
+    let mut max = 0_u32;
+    for entry in fs::read_dir(comments_dir)
+        .with_context(|| format!("reading {}", comments_dir.display()))?
+    {
+        let entry = entry?;
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if let Some(prefix) = name.split('-').next() {
+            if let Ok(seq) = prefix.parse::<u32>() {
+                if seq > max {
+                    max = seq;
+                }
+            }
+        }
+    }
+    Ok(max + 1)
+}
+
 /// Read all comments under a `comments/` directory, sorted by `seq` ascending.
 pub fn list_comments(comments_dir: &Path) -> Result<Vec<CommentFile>> {
     let mut comments = Vec::new();

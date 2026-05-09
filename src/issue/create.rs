@@ -203,7 +203,7 @@ fn validate_epic(epic: &str) -> Result<()> {
     Ok(())
 }
 
-fn read_body(input: &BodyInput) -> Result<String> {
+pub fn read_body(input: &BodyInput) -> Result<String> {
     match input {
         BodyInput::None => Ok(String::new()),
         BodyInput::Inline(s) => Ok(s.clone()),

@@ -59,11 +59,14 @@ pub fn require_initialized(paths: &RepoPaths) -> Result<()> {
     Ok(())
 }
 
-/// Read–increment–write `counters.next_issue_id` under an OS advisory exclusive
-/// lock. Preserves comments and formatting via `toml_edit`.
-pub fn allocate_next_issue_id(paths: &RepoPaths) -> Result<u64> {
+/// Run `f` while holding the repo-wide advisory exclusive lock on
+/// `.dwarven/.config.lock`. Used by all mutation paths that need
+/// repo-level serialization (id allocation, comment seq allocation,
+/// state transitions).
+///
+/// Single-machine; not safe across NFS or other networked filesystems.
+pub fn with_repo_lock<R>(paths: &RepoPaths, f: impl FnOnce() -> Result<R>) -> Result<R> {
     require_initialized(paths)?;
-
     let lock_path = paths.lock_path();
     let lock_file = OpenOptions::new()
         .create(true)
@@ -75,13 +78,16 @@ pub fn allocate_next_issue_id(paths: &RepoPaths) -> Result<u64> {
     lock_file
         .lock_exclusive()
         .with_context(|| format!("locking {}", lock_path.display()))?;
-
-    let result = with_locked_counter(paths.config_path().as_path());
-
-    // Lock is released when `lock_file` drops, but unlock explicitly so any
-    // error in the result propagates without an awkward order-of-operations.
+    let result = f();
     let _ = FileExt::unlock(&lock_file);
     result
+}
+
+/// Read–increment–write `counters.next_issue_id` under the repo lock.
+/// Preserves comments and formatting via `toml_edit`.
+pub fn allocate_next_issue_id(paths: &RepoPaths) -> Result<u64> {
+    let config_path = paths.config_path();
+    with_repo_lock(paths, || with_locked_counter(&config_path))
 }
 
 fn with_locked_counter(config_path: &Path) -> Result<u64> {

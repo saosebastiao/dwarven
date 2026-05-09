@@ -8,8 +8,10 @@ mod issue;
 mod storage;
 mod time;
 
+use issue::comment::CommentArgs;
 use issue::create::{BodyInput, CreateArgs, classify_exit_code};
 use issue::list::{ListArgs, SortField};
+use issue::transition::TransitionArgs;
 use issue::view::ViewArgs;
 
 #[derive(Parser)]
@@ -59,6 +61,10 @@ enum IssueAction {
     View(IssueViewArgs),
     /// List issues, optionally filtered.
     List(IssueListArgs),
+    /// Add a comment to an issue.
+    Comment(IssueCommentArgs),
+    /// Transition an issue to a new state.
+    Transition(IssueTransitionArgs),
 }
 
 #[derive(Args)]
@@ -170,6 +176,48 @@ struct IssueListArgs {
     sort: String,
 }
 
+#[derive(Args)]
+#[command(group(
+    ArgGroup::new("comment_body_input")
+        .args(["body", "body_file", "body_stdin"])
+        .multiple(false)
+        .required(true)
+))]
+struct IssueCommentArgs {
+    /// Issue id.
+    id: u64,
+
+    /// Inline body text.
+    #[arg(long)]
+    body: Option<String>,
+
+    /// Read body from a file.
+    #[arg(long, value_name = "PATH")]
+    body_file: Option<PathBuf>,
+
+    /// Read body from stdin.
+    #[arg(long)]
+    body_stdin: bool,
+}
+
+#[derive(Args)]
+struct IssueTransitionArgs {
+    /// Issue id.
+    id: u64,
+
+    /// Target state.
+    new_state: String,
+
+    /// Optional rationale recorded as the body of the state-change comment.
+    #[arg(long)]
+    comment: Option<String>,
+
+    /// Force a transition not in the work-states.md graph. Maintainer-only;
+    /// cannot transition into terminal states.
+    #[arg(long)]
+    r#override: bool,
+}
+
 fn main() {
     let cli = Cli::parse();
 
@@ -224,6 +272,39 @@ fn main() {
                     last: args.last,
                 };
                 map_issue(issue::view::run(view_args))
+            }
+            IssueAction::Comment(args) => {
+                let body = if let Some(s) = args.body {
+                    BodyInput::Inline(s)
+                } else if let Some(p) = args.body_file {
+                    BodyInput::File(p)
+                } else if args.body_stdin {
+                    BodyInput::Stdin
+                } else {
+                    BodyInput::None
+                };
+                let comment_args = CommentArgs {
+                    repo_root,
+                    actor,
+                    quiet: cli.quiet,
+                    json: cli.json,
+                    id: args.id,
+                    body,
+                };
+                map_issue(issue::comment::run(comment_args))
+            }
+            IssueAction::Transition(args) => {
+                let trans_args = TransitionArgs {
+                    repo_root,
+                    actor,
+                    quiet: cli.quiet,
+                    json: cli.json,
+                    id: args.id,
+                    new_state: args.new_state,
+                    comment: args.comment,
+                    override_graph: args.r#override,
+                };
+                map_issue(issue::transition::run(trans_args))
             }
             IssueAction::List(args) => match SortField::parse(&args.sort) {
                 Ok(sort) => {
