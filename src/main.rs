@@ -12,6 +12,7 @@ use issue::blocker::{ClearArgs as BlockerClearArgs, SetArgs as BlockerSetArgs};
 use issue::close::CloseArgs;
 use issue::comment::CommentArgs;
 use issue::create::{BodyInput, CreateArgs, classify_exit_code};
+use issue::dep::{AddArgs as DepAddArgs, RemoveArgs as DepRemoveArgs};
 use issue::edit::EditArgs;
 use issue::list::{ListArgs, SortField};
 use issue::priority::PriorityArgs;
@@ -80,6 +81,53 @@ enum IssueAction {
     Priority(IssuePriorityArgs),
     /// Edit low-churn frontmatter fields: --title, --type, --epic.
     Edit(IssueEditArgs),
+    /// Manage dependency edges between issues.
+    Dep {
+        #[command(subcommand)]
+        action: DepAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum DepAction {
+    /// Add an edge: `dwarven issue dep add <from> blocks <to>`.
+    Add(DepAddCli),
+    /// Remove an edge: `dwarven issue dep remove <from> <to>`.
+    Remove(DepRemoveCli),
+}
+
+#[derive(Args)]
+#[command(group(
+    ArgGroup::new("dep_rationale_input")
+        .args(["rationale", "rationale_file", "rationale_stdin"])
+        .multiple(false)
+))]
+struct DepAddCli {
+    /// Source issue id (the one that does the blocking).
+    from: u64,
+    /// Literal word "blocks" (for readability — `dep add 5 blocks 7`).
+    #[arg(value_parser = ["blocks"])]
+    blocks: String,
+    /// Target issue id (the one being blocked).
+    to: u64,
+
+    /// Inline rationale appended as a comment on the from-id issue.
+    #[arg(long)]
+    rationale: Option<String>,
+    /// Read rationale from a file.
+    #[arg(long, value_name = "PATH")]
+    rationale_file: Option<PathBuf>,
+    /// Read rationale from stdin.
+    #[arg(long)]
+    rationale_stdin: bool,
+}
+
+#[derive(Args)]
+struct DepRemoveCli {
+    /// Source issue id.
+    from: u64,
+    /// Target issue id.
+    to: u64,
 }
 
 #[derive(Args)]
@@ -400,6 +448,39 @@ fn main() {
                 };
                 map_issue(issue::transition::run(trans_args))
             }
+            IssueAction::Dep { action } => match action {
+                DepAction::Add(args) => {
+                    let rationale = if let Some(s) = args.rationale {
+                        BodyInput::Inline(s)
+                    } else if let Some(p) = args.rationale_file {
+                        BodyInput::File(p)
+                    } else if args.rationale_stdin {
+                        BodyInput::Stdin
+                    } else {
+                        BodyInput::None
+                    };
+                    let add_args = DepAddArgs {
+                        repo_root,
+                        actor,
+                        quiet: cli.quiet,
+                        json: cli.json,
+                        from_id: args.from,
+                        to_id: args.to,
+                        rationale,
+                    };
+                    map_issue(issue::dep::run_add(add_args))
+                }
+                DepAction::Remove(args) => {
+                    let rm_args = DepRemoveArgs {
+                        repo_root,
+                        quiet: cli.quiet,
+                        json: cli.json,
+                        from_id: args.from,
+                        to_id: args.to,
+                    };
+                    map_issue(issue::dep::run_remove(rm_args))
+                }
+            },
             IssueAction::Priority(args) => {
                 let pri_args = PriorityArgs {
                     repo_root,
