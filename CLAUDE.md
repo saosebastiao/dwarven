@@ -2,7 +2,7 @@
 
 ## What this is
 
-Dwarven is a **host-agnostic system for specification-driven development** with **strongly decoupled agents** and a **local coordination hub**. The project is mid-pivot (announced 2026-05-09): the v2 architecture replaces the inherited v0.1 design (Claude-Code-only, GitHub-coupled). v2 specifications are drafted; implementation has not started.
+Dwarven is a **host-agnostic system for specification-driven development** with **strongly decoupled agents** and a **local coordination hub**. The project is mid-pivot (announced 2026-05-09): the v2 architecture replaces the inherited v0.1 design (Claude-Code-only, GitHub-coupled). v2 specifications are drafted; CLI implementation is in progress (R6.1–R6.11 + R6.15 shipped; daemon/HTTP/web UI not started).
 
 The full v2 architecture is documented in `README.md` and decomposed across `docs/specs/*.md` (top-level + 9 constituent specs). This file is the load-bearing in-session reference: design decisions with rationale, working conventions, what's stale vs. settled, and pointers.
 
@@ -10,15 +10,14 @@ The full v2 architecture is documented in `README.md` and decomposed across `doc
 
 | Area | Status |
 |---|---|
-| v2 architecture | **Specs drafted, not yet locked.** Source of truth: `docs/specs/dwarven.md` plus 9 constituent specs listed in its frontmatter. The "architecture is locked" framing from v0.1 is **stale**. |
-| `dwarven` Rust binary | Skeleton + `dwarven init` shipped (slice 1, see `docs/plans/2026-05-09-bootstrap-dwarven-init.md`). `Cargo.toml`, `src/main.rs`, `src/init.rs`. Builds clean; manual verification passed. |
-| `.dwarven/` storage layout | Specified in `docs/specs/storage-model.md`. **Not yet bootstrapped in this repo** — next session should run `dwarven init` here and commit the result before further implementation. |
-| `dwarven issue *` subcommands | Not started. **Next implementation slice.** Start with `issue create` (exercises ID assignment, frontmatter writing, atomic ops); then `view`, `list`, `transition`, `comment`, `blocker`, etc. per `dwarven-cli.md#R6`. |
-| Daemon, HTTP API, web UI | Not started. v1 deliverable, after issue CRUD. |
-| Claude Code adapter | Not started. v1 deliverable. Will materialize agents to `.claude/agents/`, slash commands to `.claude/commands/`, hooks to `.claude/hooks/`, settings to `.claude/settings.json`. Deferred until issue CRUD exists so each agent's materialization can be filed as its own issue. |
+| v2 architecture | **Specs drafted, not yet locked.** Source of truth: `docs/specs/dwarven.md` plus 9 constituent specs listed in its frontmatter. Two amendments piggybacked on implementation: `storage-model.md#R4.4.4` (creation-comment `from: created` sentinel), `work-states.md#R6.2.4` + `dwarven-cli.md#R6.7.3` (universal `done` reachability via close). |
+| `dwarven` Rust binary | All daemon-free CLI subcommands shipped: `init` (R6.1), `issue {create,view,list,transition,comment,close,blocker {set,clear},priority,edit,dep {add,remove}}` (R6.2–R6.11), `config {get,set}` (R6.15). 106 tests, `cargo test` green. Source under `src/`; integration tests under `tests/`. |
+| `.dwarven/` in this repo | Bootstrapped at `5d0ede4`; `next_issue_id = 1` (no real issues filed yet — verification used scratch tempdirs). |
+| Daemon, HTTP API, web UI | Not started. R6.12 (`serve`), R6.13 (`daemon stop/status/restart`), R6.14 (`reindex`) all blocked on this. Spec: `coordination-hub.md`, `web-api.md`, `web-ui.md`. |
+| Claude Code adapter | Not started. v1 deliverable. Will materialize agents to `.claude/agents/`, slash commands to `.claude/commands/`, hooks to `.claude/hooks/`, settings to `.claude/settings.json`. Spec: `host-adapter.md`. |
 | opencode adapter | v3 deliverable. |
-| Dep-graph scheduler | v2 deliverable. |
-| Inherited `agents/`, `skills/`, `commands/`, `hooks/` | Implement v0.1 (GH-coupled, CC-only). **Stale**. Do not refactor; they will be replaced wholesale as v1 implementation lands. Flagged with `STALE.md` markers. |
+| Dep-graph scheduler | v2 deliverable. Cycle detection for the live `blocks` graph already lands with `dwarven issue dep add` (slice 9); the scheduler's effective-priority computation is later work. |
+| Inherited `agents/`, `skills/`, `commands/`, `hooks/` | Implement v0.1 (GH-coupled, CC-only). **Stale**. Do not refactor; they will be replaced wholesale by the Claude Code adapter. Flagged with `STALE.md` markers. |
 
 ## The pivot (2026-05-09)
 
