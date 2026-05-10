@@ -2,12 +2,12 @@
 id: 2
 title: 'Daemon: validate config.toml at startup; fatal on invalid'
 type: feature
-state: pm
+state: done
 priority: p2
 epic: daemon-polish
 created: 2026-05-10T02:03:04Z
 created_by: maintainer
-updated: 2026-05-10T02:03:04Z
+updated: 2026-05-10T05:52:47Z
 ---
 coordination-hub.md#R10.6 specifies validation (daemon.port in [1,65535]; scheduler.alpha in [0.0, 1.0]; scheduler.priority_weights positive with p0 >= p1 >= p2; triage.stale_threshold_days positive). It says "Validation failures on hub start are fatal".
 

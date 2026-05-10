@@ -10,6 +10,13 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- Daemon now validates `.dwarven/config.toml` at startup per
+  `coordination-hub.md#R10.6`. Out-of-range `daemon.port`, invalid
+  `scheduler.alpha`, mis-ordered `scheduler.priority_weights`, and
+  zero `triage.stale_threshold_days` / `daemon.reconciliation_interval_seconds`
+  cause `dwarven serve` to exit with code 1 and a clear error
+  before any side effects (PID lock, HTTP bind, watcher start).
+  (#2)
 - Daemon startup now probes the existing SQLite index for health
   (`coordination-hub.md#R7.3` + `#R7.4`) before performing the
   unconditional reindex. One of four log lines reports whether the
