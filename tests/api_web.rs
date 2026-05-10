@@ -104,6 +104,15 @@ fn app_js_is_served() {
     // Slice 22: schedule renderer is bundled.
     assert!(body.contains("renderSchedule"));
     assert!(body.contains("scheduler/queue"));
+    // Slice 24: full mutation UI on issue detail screen.
+    assert!(body.contains("renderIssueActions"));
+    assert!(body.contains("wireIssueActions"));
+    assert!(body.contains("/transitions"));
+    assert!(body.contains("/blocker"));
+    assert!(body.contains("/priority"));
+    assert!(body.contains("patchJSON"));
+    assert!(body.contains("deleteJSON"));
+    assert!(body.contains("putJSON"));
 }
 
 #[test]

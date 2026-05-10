@@ -44,15 +44,33 @@ async function getJSON(path) {
 }
 
 async function postJSON(path, body) {
-    const resp = await fetch(`${API}${path}`, {
-        method: "POST",
+    return fetchJSON("POST", path, body);
+}
+
+async function patchJSON(path, body) {
+    return fetchJSON("PATCH", path, body);
+}
+
+async function putJSON(path, body) {
+    return fetchJSON("PUT", path, body);
+}
+
+async function deleteJSON(path, body) {
+    return fetchJSON("DELETE", path, body);
+}
+
+async function fetchJSON(method, path, body) {
+    const init = {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-    });
+    };
+    if (body !== undefined) init.body = JSON.stringify(body);
+    const resp = await fetch(`${API}${path}`, init);
     if (!resp.ok) {
         const err = await resp.json().catch(() => ({}));
         throw new Error(err.message || `${resp.status} ${resp.statusText}`);
     }
+    if (resp.status === 204) return null;
     return resp.json();
 }
 
@@ -234,6 +252,8 @@ async function renderIssue(id) {
             })
             .join("");
 
+        const isTerminal = issue.state === "done" || issue.state === "dropped";
+
         app.innerHTML = `
             <article class="detail">
                 <h1>#${issue.id}: ${escapeHtml(issue.title)}</h1>
@@ -241,30 +261,216 @@ async function renderIssue(id) {
                 <div class="meta">created ${escapeHtml(issue.created)} by ${escapeHtml(issue.created_by)} · updated ${escapeHtml(issue.updated)}</div>
                 ${issue.body ? `<div class="body">${escapeHtml(issue.body)}</div>` : ""}
                 ${deps}
-                <div id="actions">
-                    <h3>Add comment</h3>
-                    <textarea id="new-comment" rows="3" placeholder="Markdown body…"></textarea>
-                    <div class="toolbar">
-                        <button id="post-comment">Post</button>
-                    </div>
-                </div>
+                ${isTerminal ? `<div class="notice">This issue is in terminal state '${issue.state}'. No mutations allowed.</div>` : renderIssueActions(issue)}
                 <h3>Comments (${comments.length})</h3>
-                ${commentsHtml || `<div class="empty">no comments yet</div>`}
+                <div id="comments">${commentsHtml || `<div class="empty">no comments yet</div>`}</div>
             </article>`;
 
-        document.getElementById("post-comment").onclick = async () => {
-            const body = document.getElementById("new-comment").value.trim();
-            if (!body) return;
-            try {
-                await postJSON(`/issues/${id}/comments`, { body });
-                renderIssue(id);
-            } catch (e) {
-                alert("comment failed: " + e.message);
-            }
-        };
+        if (!isTerminal) {
+            wireIssueActions(id, issue);
+        }
     } catch (e) {
         app.innerHTML = `<div class="empty">load failed: ${escapeHtml(e.message)}</div>`;
     }
+}
+
+const TRANSITION_TARGETS = [
+    "spec", "architect", "pm", "plan", "test", "implement",
+    "review", "doc", "maintainer", "done", "dropped",
+];
+const BLOCKER_VALUES = ["maintainer-input", "external", "upstream"];
+const TYPE_VALUES = ["spec-gap", "feature", "bug", "arch", "doc", "chore"];
+
+function renderIssueActions(issue) {
+    const priorityCurrent = issue.priority ?? "";
+    const blockerCurrent = issue.blocker ?? "";
+    const epicCurrent = issue.epic ?? "";
+    return `
+        <h3>Actions</h3>
+        <details open>
+            <summary>Add comment</summary>
+            <textarea id="new-comment" rows="3" placeholder="Markdown body…"></textarea>
+            <div class="toolbar"><button id="post-comment">Post</button></div>
+        </details>
+        <details>
+            <summary>Transition state</summary>
+            <label>To</label>
+            <select id="transition-to">
+                ${TRANSITION_TARGETS
+                    .filter((t) => t !== issue.state)
+                    .map((t) => `<option value="${t}">${t}</option>`)
+                    .join("")}
+            </select>
+            <label>Comment (optional)</label>
+            <input id="transition-comment" type="text" placeholder="why">
+            <label><input id="transition-override" type="checkbox"> --override (maintainer-only; cannot target terminal)</label>
+            <div class="toolbar"><button id="do-transition">Transition</button></div>
+        </details>
+        <details>
+            <summary>Close</summary>
+            <label>Target</label>
+            <select id="close-target">
+                <option value="done">done</option>
+                <option value="dropped">dropped</option>
+            </select>
+            <label>Closure comment (required)</label>
+            <input id="close-comment" type="text" placeholder="why">
+            <div class="toolbar"><button id="do-close" class="danger">Close issue</button></div>
+        </details>
+        <details>
+            <summary>Blocker</summary>
+            <label>Set</label>
+            <select id="blocker-value">
+                ${BLOCKER_VALUES.map((b) => `<option value="${b}" ${b === blockerCurrent ? "selected" : ""}>${b}</option>`).join("")}
+            </select>
+            <label>Comment (optional)</label>
+            <input id="blocker-comment" type="text" placeholder="context">
+            <div class="toolbar">
+                <button id="do-set-blocker">${issue.blocker ? "Update" : "Set"} blocker</button>
+                ${issue.blocker ? `<button id="do-clear-blocker">Clear</button>` : ""}
+            </div>
+        </details>
+        <details>
+            <summary>Priority</summary>
+            <label>Set</label>
+            <select id="priority-value">
+                <option value="p0" ${priorityCurrent === "p0" ? "selected" : ""}>p0</option>
+                <option value="p1" ${priorityCurrent === "p1" ? "selected" : ""}>p1</option>
+                <option value="p2" ${priorityCurrent === "p2" ? "selected" : ""}>p2</option>
+            </select>
+            <div class="toolbar">
+                <button id="do-set-priority">Set</button>
+                ${issue.priority ? `<button id="do-clear-priority">Clear</button>` : ""}
+            </div>
+        </details>
+        <details>
+            <summary>Edit title / type / epic</summary>
+            <label>Title</label>
+            <input id="edit-title" type="text" value="${escapeHtml(issue.title)}">
+            <label>Type</label>
+            <select id="edit-type">
+                ${TYPE_VALUES.map((t) => `<option value="${t}" ${t === issue.type ? "selected" : ""}>${t}</option>`).join("")}
+            </select>
+            <label>Epic (kebab slug)</label>
+            <input id="edit-epic" type="text" value="${escapeHtml(epicCurrent)}" placeholder="e.g. cli-foundation">
+            <div class="toolbar"><button id="do-edit">Save</button></div>
+        </details>
+        <details>
+            <summary>Dependencies</summary>
+            <label>Add edge: this issue blocks</label>
+            <input id="dep-add-to" type="number" placeholder="issue id">
+            <label>Rationale (optional)</label>
+            <input id="dep-add-rationale" type="text" placeholder="why">
+            <div class="toolbar"><button id="do-add-dep">Add edge</button></div>
+            <label>Or: remove an existing outgoing edge to</label>
+            <input id="dep-remove-to" type="number" placeholder="issue id">
+            <div class="toolbar"><button id="do-remove-dep">Remove edge</button></div>
+        </details>`;
+}
+
+function wireIssueActions(id, issue) {
+    const reload = () => renderIssue(id);
+    const reloadOnSuccess = async (label, fn) => {
+        try {
+            await fn();
+            reload();
+        } catch (e) {
+            alert(`${label} failed: ${e.message}`);
+        }
+    };
+
+    document.getElementById("post-comment").onclick = () =>
+        reloadOnSuccess("comment", async () => {
+            const body = document.getElementById("new-comment").value.trim();
+            if (!body) throw new Error("body required");
+            await postJSON(`/issues/${id}/comments`, { body });
+        });
+
+    document.getElementById("do-transition").onclick = () =>
+        reloadOnSuccess("transition", async () => {
+            const to = document.getElementById("transition-to").value;
+            const comment = document.getElementById("transition-comment").value.trim() || undefined;
+            const override = document.getElementById("transition-override").checked;
+            const body = { to };
+            if (comment) body.comment = comment;
+            if (override) body.override = true;
+            await postJSON(`/issues/${id}/transitions`, body);
+        });
+
+    document.getElementById("do-close").onclick = () =>
+        reloadOnSuccess("close", async () => {
+            const to = document.getElementById("close-target").value;
+            const comment = document.getElementById("close-comment").value.trim();
+            if (!comment) throw new Error("closure comment required");
+            await postJSON(`/issues/${id}/transitions`, { to, comment });
+        });
+
+    document.getElementById("do-set-blocker").onclick = () =>
+        reloadOnSuccess("blocker set", async () => {
+            const blocker = document.getElementById("blocker-value").value;
+            const comment = document.getElementById("blocker-comment").value.trim() || undefined;
+            const body = { blocker };
+            if (comment) body.comment = comment;
+            await putJSON(`/issues/${id}/blocker`, body);
+        });
+
+    if (issue.blocker) {
+        const btn = document.getElementById("do-clear-blocker");
+        if (btn) {
+            btn.onclick = () =>
+                reloadOnSuccess("blocker clear", async () => {
+                    const comment = document.getElementById("blocker-comment").value.trim();
+                    const body = comment ? { comment } : {};
+                    await deleteJSON(`/issues/${id}/blocker`, body);
+                });
+        }
+    }
+
+    document.getElementById("do-set-priority").onclick = () =>
+        reloadOnSuccess("priority set", async () => {
+            const priority = document.getElementById("priority-value").value;
+            await putJSON(`/issues/${id}/priority`, { priority });
+        });
+
+    if (issue.priority) {
+        const btn = document.getElementById("do-clear-priority");
+        if (btn) {
+            btn.onclick = () =>
+                reloadOnSuccess("priority clear", async () => {
+                    await deleteJSON(`/issues/${id}/priority`);
+                });
+        }
+    }
+
+    document.getElementById("do-edit").onclick = () =>
+        reloadOnSuccess("edit", async () => {
+            const title = document.getElementById("edit-title").value.trim();
+            const type = document.getElementById("edit-type").value;
+            const epic = document.getElementById("edit-epic").value.trim();
+            const body = {};
+            if (title && title !== issue.title) body.title = title;
+            if (type !== issue.type) body.type = type;
+            if (epic && epic !== (issue.epic ?? "")) body.epic = epic;
+            if (Object.keys(body).length === 0) throw new Error("no changes");
+            await patchJSON(`/issues/${id}`, body);
+        });
+
+    document.getElementById("do-add-dep").onclick = () =>
+        reloadOnSuccess("dep add", async () => {
+            const to = Number(document.getElementById("dep-add-to").value);
+            if (!Number.isFinite(to) || to <= 0) throw new Error("target id required");
+            const rationale = document.getElementById("dep-add-rationale").value.trim() || undefined;
+            const body = { from: id, to };
+            if (rationale) body.rationale = rationale;
+            await postJSON(`/dependencies`, body);
+        });
+
+    document.getElementById("do-remove-dep").onclick = () =>
+        reloadOnSuccess("dep remove", async () => {
+            const to = Number(document.getElementById("dep-remove-to").value);
+            if (!Number.isFinite(to) || to <= 0) throw new Error("target id required");
+            await deleteJSON(`/dependencies/${id}/${to}`);
+        });
 }
 
 // ---------- Schedule screen (web-ui.md#R8) ----------
