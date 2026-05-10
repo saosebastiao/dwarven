@@ -1,8 +1,8 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OpenFlags, params};
 
 use crate::storage::comment_file::list_comments;
 use crate::storage::config::{RepoPaths, require_initialized};
@@ -10,6 +10,70 @@ use crate::storage::issue_file::{enumerate_issue_ids, read_issue};
 
 /// Schema version. Bump on any breaking change to the table layout.
 pub const SCHEMA_VERSION: i64 = 1;
+
+/// Result of inspecting an existing `.index.sqlite` file before the daemon
+/// performs its startup reindex. `coordination-hub.md#R7.3` (PRAGMA
+/// integrity_check) and `#R7.4` (schema-version mismatch).
+#[derive(Debug)]
+pub enum IndexHealth {
+    /// No file at the index path.
+    Missing,
+    /// File exists but failed to open or `PRAGMA integrity_check` did not
+    /// return `ok`. The string carries the underlying error / result.
+    Corrupt(String),
+    /// File opens cleanly, integrity check passes, but `meta.schema_version`
+    /// does not match `SCHEMA_VERSION`.
+    VersionMismatch { found: i64, expected: i64 },
+    /// File opens, passes integrity, schema version matches.
+    Ok,
+}
+
+/// Inspect the index at `path` and report its health. Errors here are
+/// treated as `Corrupt` with the error string — i.e., any unhandled failure
+/// to open or query is grounds for rebuilding.
+pub fn probe_health(path: &Path) -> Result<IndexHealth> {
+    if !path.exists() {
+        return Ok(IndexHealth::Missing);
+    }
+    let conn = match Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY) {
+        Ok(c) => c,
+        Err(e) => return Ok(IndexHealth::Corrupt(format!("open: {e}"))),
+    };
+    match check_integrity(&conn) {
+        Ok(true) => {}
+        Ok(false) => return Ok(IndexHealth::Corrupt("integrity_check: not ok".into())),
+        Err(e) => return Ok(IndexHealth::Corrupt(format!("integrity_check: {e}"))),
+    };
+    match read_schema_version(&conn) {
+        Ok(Some(v)) if v == SCHEMA_VERSION => Ok(IndexHealth::Ok),
+        Ok(Some(v)) => Ok(IndexHealth::VersionMismatch {
+            found: v,
+            expected: SCHEMA_VERSION,
+        }),
+        Ok(None) => Ok(IndexHealth::Corrupt("missing meta.schema_version row".into())),
+        Err(e) => Ok(IndexHealth::Corrupt(format!("read schema_version: {e}"))),
+    }
+}
+
+pub fn check_integrity(conn: &Connection) -> rusqlite::Result<bool> {
+    let result: String = conn.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
+    Ok(result == "ok")
+}
+
+pub fn read_schema_version(conn: &Connection) -> rusqlite::Result<Option<i64>> {
+    let raw: Option<String> = conn
+        .query_row(
+            "SELECT value FROM meta WHERE key = 'schema_version'",
+            [],
+            |r| r.get(0),
+        )
+        .map(Some)
+        .or_else(|e| match e {
+            rusqlite::Error::QueryReturnedNoRows => Ok(None),
+            other => Err(other),
+        })?;
+    Ok(raw.and_then(|s| s.parse::<i64>().ok()))
+}
 
 const SCHEMA_DDL: &[&str] = &[
     "CREATE TABLE meta (
