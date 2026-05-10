@@ -6,10 +6,11 @@ use std::time::Duration;
 use anyhow::{Context, Result, anyhow};
 use axum::Json;
 use axum::extract::State;
-use axum::routing::get;
+use axum::routing::{delete, get, post, put};
 
 use crate::api::error::ApiError;
 use crate::api::issues;
+use crate::api::mutations;
 use crate::api::state::AppState;
 use crate::api::types::DaemonStatus;
 use crate::storage::config::RepoPaths;
@@ -82,11 +83,41 @@ pub fn spawn(
 fn router(state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/api/v1/daemon", get(daemon_status))
-        .route("/api/v1/issues", get(issues::list))
-        .route("/api/v1/issues/:id", get(issues::view))
+        .route(
+            "/api/v1/issues",
+            get(issues::list).post(mutations::create_issue),
+        )
+        .route(
+            "/api/v1/issues/:id",
+            get(issues::view).patch(mutations::edit_issue),
+        )
         .route(
             "/api/v1/issues/:id/comments",
-            get(issues::list_comments_for_issue),
+            get(issues::list_comments_for_issue).post(mutations::append_comment),
+        )
+        .route(
+            "/api/v1/issues/:id/transitions",
+            post(mutations::transition),
+        )
+        .route(
+            "/api/v1/issues/:id/blocker",
+            put(mutations::set_blocker).delete(mutations::clear_blocker),
+        )
+        .route(
+            "/api/v1/issues/:id/priority",
+            put(mutations::set_priority).delete(mutations::clear_priority),
+        )
+        .route(
+            "/api/v1/issues/:id/dependencies",
+            get(mutations::list_deps_for_issue),
+        )
+        .route(
+            "/api/v1/dependencies",
+            get(mutations::list_deps_all).post(mutations::add_dep),
+        )
+        .route(
+            "/api/v1/dependencies/:from/:to",
+            delete(mutations::remove_dep),
         )
         .with_state(state)
 }
