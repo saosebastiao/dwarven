@@ -4,6 +4,7 @@ use anyhow::Result;
 use clap::{ArgGroup, Args, Parser, Subcommand};
 
 mod config;
+mod daemon;
 mod index;
 mod init;
 mod issue;
@@ -11,6 +12,8 @@ mod storage;
 mod time;
 
 use config::{GetArgs as ConfigGetArgs, SetArgs as ConfigSetArgs};
+use daemon::control::{RestartArgs, StatusArgs, StopArgs};
+use daemon::serve::ServeArgs;
 use index::ReindexArgs;
 use issue::blocker::{ClearArgs as BlockerClearArgs, SetArgs as BlockerSetArgs};
 use issue::close::CloseArgs;
@@ -69,6 +72,25 @@ enum Command {
 
     /// Rebuild the SQLite index from `.dwarven/` files.
     Reindex,
+
+    /// Run the coordination hub daemon in the foreground.
+    Serve,
+
+    /// Manage the running daemon (status / stop / restart).
+    Daemon {
+        #[command(subcommand)]
+        action: DaemonAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum DaemonAction {
+    /// Print whether the daemon is running.
+    Status,
+    /// Send SIGTERM and wait for the daemon to exit.
+    Stop,
+    /// Stop the running daemon (if any) then start a new one in the foreground.
+    Restart,
 }
 
 #[derive(Subcommand)]
@@ -418,6 +440,51 @@ fn main() {
             quiet: cli.quiet,
             json: cli.json,
         })),
+        Command::Serve => match daemon::serve::run(ServeArgs {
+            repo_root,
+            quiet: cli.quiet,
+        }) {
+            Ok(()) => Ok(0),
+            Err(e) => {
+                let code = classify_exit_code(&e);
+                eprintln!("error: {e:#}");
+                Ok(code)
+            }
+        },
+        Command::Daemon { action } => match action {
+            DaemonAction::Status => match daemon::control::run_status(StatusArgs {
+                repo_root,
+                quiet: cli.quiet,
+                json: cli.json,
+            }) {
+                Ok(code) => Ok(code),
+                Err(e) => {
+                    eprintln!("error: {e:#}");
+                    Ok(2)
+                }
+            },
+            DaemonAction::Stop => match daemon::control::run_stop(StopArgs {
+                repo_root,
+                quiet: cli.quiet,
+                json: cli.json,
+            }) {
+                Ok(code) => Ok(code),
+                Err(e) => {
+                    eprintln!("error: {e:#}");
+                    Ok(2)
+                }
+            },
+            DaemonAction::Restart => match daemon::control::run_restart(RestartArgs {
+                repo_root,
+                quiet: cli.quiet,
+            }) {
+                Ok(code) => Ok(code),
+                Err(e) => {
+                    eprintln!("error: {e:#}");
+                    Ok(2)
+                }
+            },
+        },
         Command::Config { action } => match action {
             ConfigAction::Get(args) => {
                 let g = ConfigGetArgs {
