@@ -11,6 +11,7 @@ use axum::routing::{delete, get, post, put};
 use crate::api::config as api_config;
 use crate::api::daemon_ops;
 use crate::api::error::ApiError;
+use crate::api::events as api_events;
 use crate::api::issues;
 use crate::api::mutations;
 use crate::api::state::AppState;
@@ -28,8 +29,9 @@ pub fn spawn(
     paths: RepoPaths,
     bind: SocketAddr,
     term_flag: Arc<AtomicBool>,
+    events: crate::api::events::EventTx,
 ) -> Result<std::thread::JoinHandle<()>> {
-    let app_state = AppState::new(paths.clone(), Arc::clone(&term_flag));
+    let app_state = AppState::new(paths.clone(), Arc::clone(&term_flag), events);
 
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<()>>();
 
@@ -132,6 +134,7 @@ fn router(state: AppState) -> axum::Router {
             "/api/v1/scheduler/override",
             post(daemon_ops::scheduler_override),
         )
+        .route("/api/v1/events", get(api_events::sse_handler))
         .with_state(state)
 }
 

@@ -11,6 +11,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::api::error::ApiError;
+use crate::api::events::{EventKind, emit};
 use crate::api::state::AppState;
 use crate::api::types::{Comment, Issue};
 use crate::issue;
@@ -152,6 +153,11 @@ pub async fn create_issue(
     let paths = app.paths.clone();
     let issue =
         run_blocking(move || read_issue_for_response(&paths, id)).await?;
+    emit(
+        &app.events,
+        EventKind::IssueCreated,
+        serde_json::json!({"id": id}),
+    );
     Ok((StatusCode::CREATED, Json(issue)))
 }
 
@@ -194,6 +200,11 @@ pub async fn edit_issue(
 
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
+    emit(
+        &app.events,
+        EventKind::IssueChanged,
+        serde_json::json!({"id": id, "kind": "edit"}),
+    );
     Ok(Json(issue))
 }
 
@@ -236,6 +247,12 @@ pub async fn append_comment(
     })
     .await?;
 
+    let seq = comments.last().map(|c| c.seq).unwrap_or(0);
+    emit(
+        &app.events,
+        EventKind::CommentAdded,
+        serde_json::json!({"issue": id, "seq": seq}),
+    );
     Ok((StatusCode::CREATED, Json(comments)))
 }
 
@@ -260,6 +277,7 @@ pub async fn transition(
     let paths = app.paths.clone();
     let actor = actor_or_default(body.actor);
     let target = body.to.clone();
+    let target_for_event = target.clone();
 
     run_blocking(move || {
         // R4.3.3: closing == transition with to=done|dropped. Route
@@ -297,6 +315,16 @@ pub async fn transition(
 
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
+    let kind = if target_for_event == "done" || target_for_event == "dropped" {
+        EventKind::IssueClosed
+    } else {
+        EventKind::IssueChanged
+    };
+    emit(
+        &app.events,
+        kind,
+        serde_json::json!({"id": id, "to": target_for_event}),
+    );
     Ok(Json(issue))
 }
 
@@ -318,6 +346,7 @@ pub async fn set_blocker(
 ) -> Result<Json<Issue>, ApiError> {
     let paths = app.paths.clone();
     let actor = actor_or_default(body.actor);
+    let blocker_for_event = body.blocker.clone();
 
     run_blocking(move || {
         let args = issue::blocker::SetArgs {
@@ -335,6 +364,11 @@ pub async fn set_blocker(
 
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
+    emit(
+        &app.events,
+        EventKind::IssueChanged,
+        serde_json::json!({"id": id, "kind": "blocker-set", "blocker": blocker_for_event}),
+    );
     Ok(Json(issue))
 }
 
@@ -370,6 +404,11 @@ pub async fn clear_blocker(
 
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
+    emit(
+        &app.events,
+        EventKind::IssueChanged,
+        serde_json::json!({"id": id, "kind": "blocker-cleared"}),
+    );
     Ok(Json(issue))
 }
 
@@ -386,6 +425,7 @@ pub async fn set_priority(
     Json(body): Json<SetPriorityBody>,
 ) -> Result<Json<Issue>, ApiError> {
     let paths = app.paths.clone();
+    let priority_for_event = body.priority.clone();
     run_blocking(move || {
         let args = issue::priority::PriorityArgs {
             repo_root: paths.root.clone(),
@@ -399,6 +439,11 @@ pub async fn set_priority(
     .await?;
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
+    emit(
+        &app.events,
+        EventKind::IssueChanged,
+        serde_json::json!({"id": id, "kind": "priority-set", "priority": priority_for_event}),
+    );
     Ok(Json(issue))
 }
 
@@ -419,6 +464,11 @@ pub async fn clear_priority(
     .await?;
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
+    emit(
+        &app.events,
+        EventKind::IssueChanged,
+        serde_json::json!({"id": id, "kind": "priority-cleared"}),
+    );
     Ok(Json(issue))
 }
 
@@ -460,6 +510,11 @@ pub async fn add_dep(
     })
     .await?;
 
+    emit(
+        &app.events,
+        EventKind::DependencyAdded,
+        serde_json::json!({"from": from_id, "to": to_id}),
+    );
     Ok((
         StatusCode::CREATED,
         Json(serde_json::json!({"from": from_id, "to": to_id})),
@@ -482,6 +537,11 @@ pub async fn remove_dep(
         issue::dep::run_remove(args).map_err(classify)
     })
     .await?;
+    emit(
+        &app.events,
+        EventKind::DependencyRemoved,
+        serde_json::json!({"from": from, "to": to}),
+    );
     Ok(StatusCode::NO_CONTENT)
 }
 

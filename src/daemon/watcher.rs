@@ -5,8 +5,9 @@ use std::sync::mpsc::{RecvTimeoutError, channel};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
-use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use notify::{Event, EventKind as FsEventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
+use crate::api::events::{EventKind, EventTx, emit};
 use crate::index;
 use crate::storage::config::RepoPaths;
 
@@ -26,7 +27,7 @@ const DEFAULT_RECONCILE_SECS: u64 = 60;
 
 /// Run the daemon's watch + reindex loop. Returns once `term_flag` is set.
 /// Performs an initial reindex on entry per `coordination-hub.md#R3.3` step 5.
-pub fn run(paths: &RepoPaths, term_flag: Arc<AtomicBool>) -> Result<()> {
+pub fn run(paths: &RepoPaths, term_flag: Arc<AtomicBool>, events: EventTx) -> Result<()> {
     let (tx, rx) = channel::<()>();
     let watcher = spawn_watcher(paths, tx.clone())?;
     let _watcher = watcher; // keep alive; drop on return tears it down
@@ -38,6 +39,16 @@ pub fn run(paths: &RepoPaths, term_flag: Arc<AtomicBool>) -> Result<()> {
     eprintln!(
         "[daemon] initial reindex: {} issues, {} comments, {} edges",
         stats.issues, stats.comments, stats.edges
+    );
+    emit(
+        &events,
+        EventKind::DaemonReindexed,
+        serde_json::json!({
+            "reason": "startup",
+            "issues": stats.issues,
+            "comments": stats.comments,
+            "edges": stats.edges,
+        }),
     );
 
     let mut last_reindex = Instant::now();
@@ -54,7 +65,13 @@ pub fn run(paths: &RepoPaths, term_flag: Arc<AtomicBool>) -> Result<()> {
             Err(RecvTimeoutError::Disconnected) => {
                 // Watcher thread died; degrade to pure reconciliation.
                 eprintln!("[daemon] watcher channel disconnected; running on reconciliation only");
-                drain_disconnected_until_term(&term_flag, &mut last_reindex, paths, reconcile_interval);
+                drain_disconnected_until_term(
+                    &term_flag,
+                    &mut last_reindex,
+                    paths,
+                    reconcile_interval,
+                    &events,
+                );
                 return Ok(());
             }
         }
@@ -62,14 +79,14 @@ pub fn run(paths: &RepoPaths, term_flag: Arc<AtomicBool>) -> Result<()> {
         // Debounced reindex from event bursts.
         if let Some(t) = pending_since {
             if t.elapsed() >= DEBOUNCE {
-                reindex_log(paths, &mut last_reindex, "events");
+                reindex_log(paths, &mut last_reindex, "events", &events);
                 pending_since = None;
             }
         }
 
         // Periodic reconciliation (R6.4) acts as a safety net for missed events.
         if last_reindex.elapsed() >= reconcile_interval {
-            reindex_log(paths, &mut last_reindex, "reconcile");
+            reindex_log(paths, &mut last_reindex, "reconcile", &events);
         }
     }
 
@@ -120,7 +137,7 @@ fn is_relevant(event: &Event) -> bool {
     }
     matches!(
         event.kind,
-        EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
+        FsEventKind::Create(_) | FsEventKind::Modify(_) | FsEventKind::Remove(_)
     )
 }
 
@@ -134,13 +151,23 @@ fn is_internal_artifact(path: &Path) -> bool {
         || name.starts_with('.') && name.contains(".tmp.")
 }
 
-fn reindex_log(paths: &RepoPaths, last_reindex: &mut Instant, reason: &str) {
+fn reindex_log(paths: &RepoPaths, last_reindex: &mut Instant, reason: &str, events: &EventTx) {
     match index::rebuild(paths) {
         Ok(stats) => {
             *last_reindex = Instant::now();
             eprintln!(
                 "[daemon] reindex ({reason}): {} issues, {} comments, {} edges",
                 stats.issues, stats.comments, stats.edges
+            );
+            emit(
+                events,
+                EventKind::DaemonReindexed,
+                serde_json::json!({
+                    "reason": reason,
+                    "issues": stats.issues,
+                    "comments": stats.comments,
+                    "edges": stats.edges,
+                }),
             );
         }
         Err(e) => {
@@ -175,11 +202,12 @@ fn drain_disconnected_until_term(
     last_reindex: &mut Instant,
     paths: &RepoPaths,
     reconcile_interval: Duration,
+    events: &EventTx,
 ) {
     while !term_flag.load(Ordering::Relaxed) {
         std::thread::sleep(TICK);
         if last_reindex.elapsed() >= reconcile_interval {
-            reindex_log(paths, last_reindex, "reconcile-fallback");
+            reindex_log(paths, last_reindex, "reconcile-fallback", events);
         }
     }
 }

@@ -66,8 +66,14 @@ pub fn run(args: ServeArgs) -> Result<()> {
     // Spawn the HTTP server first so a bind failure (e.g., port in use)
     // surfaces before we publish anything else. The HTTP thread terminates
     // when term_flag flips.
-    let http_handle = crate::api::server::spawn(paths.clone(), bind, Arc::clone(&term_flag))
-        .with_context(|| "starting HTTP server")?;
+    let events = crate::api::events::make_channel();
+    let http_handle = crate::api::server::spawn(
+        paths.clone(),
+        bind,
+        Arc::clone(&term_flag),
+        events.clone(),
+    )
+    .with_context(|| "starting HTTP server")?;
 
     if !args.quiet {
         println!("dwarven daemon started (PID {})", std::process::id());
@@ -77,7 +83,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
 
     // Run the file watcher + reindex loop on this thread. Returns once
     // term_flag is set (signal received).
-    crate::daemon::watcher::run(&paths, Arc::clone(&term_flag))?;
+    crate::daemon::watcher::run(&paths, Arc::clone(&term_flag), events)?;
 
     // Wait for the HTTP server thread to drain.
     let _ = http_handle.join();
