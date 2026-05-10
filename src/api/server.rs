@@ -30,7 +30,7 @@ pub fn spawn(
     paths: RepoPaths,
     bind: SocketAddr,
     term_flag: Arc<AtomicBool>,
-    events: crate::api::events::EventTx,
+    events: crate::api::events::EventBus,
 ) -> Result<std::thread::JoinHandle<()>> {
     let app_state = AppState::new(paths.clone(), Arc::clone(&term_flag), events);
 
