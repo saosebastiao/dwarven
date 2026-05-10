@@ -4,6 +4,7 @@ use std::path::Path;
 use anyhow::{Context, Result, anyhow};
 use uuid::Uuid;
 
+use crate::adapter;
 use crate::storage::write_atomic;
 
 const GITIGNORE_BODY: &str = "\
@@ -21,19 +22,13 @@ const GITIGNORE_BODY: &str = "\
 ";
 
 pub fn run(repo_root: &Path, hosts: &[String], quiet: bool) -> Result<()> {
-    if !hosts.is_empty() {
-        eprintln!(
-            "warning: --host adapter materialization is not yet implemented; \
-             ignoring: {}",
-            hosts.join(", ")
-        );
-    }
-
     let dwarven_dir = repo_root.join(".dwarven");
     let config_path = dwarven_dir.join("config.toml");
 
     if dwarven_dir.exists() {
-        return report_existing(&dwarven_dir, &config_path, quiet);
+        report_existing(&dwarven_dir, &config_path, quiet)?;
+        install_adapters(repo_root, hosts, quiet)?;
+        return Ok(());
     }
 
     let repo_name = repo_root
@@ -65,6 +60,21 @@ pub fn run(repo_root: &Path, hosts: &[String], quiet: bool) -> Result<()> {
         );
     }
 
+    install_adapters(repo_root, hosts, quiet)?;
+    Ok(())
+}
+
+fn install_adapters(repo_root: &Path, hosts: &[String], quiet: bool) -> Result<()> {
+    for host in hosts {
+        let summary = adapter::install(host, repo_root)
+            .with_context(|| format!("installing adapter '{host}'"))?;
+        if !quiet {
+            println!(
+                "Installed adapter '{host}': {} written, {} unchanged",
+                summary.written, summary.unchanged
+            );
+        }
+    }
     Ok(())
 }
 
