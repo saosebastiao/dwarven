@@ -110,6 +110,7 @@ async function render() {
     if (r.route === "inbox") return renderInbox();
     if (r.route === "issues") return renderIssues(r.params);
     if (r.route === "issue") return renderIssue(r.id);
+    if (r.route === "deps") return renderDeps(r.params);
     if (r.route === "schedule") return renderSchedule();
     if (r.route === "daemon") return renderDaemon();
     if (r.route === "config") return renderConfig();
@@ -540,6 +541,283 @@ function wireIssueActions(id, issue) {
         });
 }
 
+// ---------- Dependencies graph (web-ui.md#R7) ----------
+
+const STATE_COLORS = {
+    spec: "#6cb6ff",
+    architect: "#aa80ff",
+    pm: "#ff80c0",
+    plan: "#f0a060",
+    test: "#f0d060",
+    implement: "#80c080",
+    review: "#60c0c0",
+    doc: "#c0a0e0",
+    maintainer: "#f06060",
+    done: "#666",
+    dropped: "#444",
+};
+
+const PRIORITY_RADIUS = { p0: 22, p1: 17, p2: 13 };
+const DEFAULT_RADIUS = 13;
+
+async function renderDeps(params) {
+    app.innerHTML = `<div class="empty">loading graph…</div>`;
+    try {
+        const includeTerminal = params.get("all") === "true";
+        const focusId = params.get("focus") ? Number(params.get("focus")) : null;
+        const hops = params.get("hops") ? Math.max(1, Number(params.get("hops"))) : 1;
+
+        const issues = await getJSON("/issues?all=true");
+        let nodes = includeTerminal
+            ? issues
+            : issues.filter((i) => i.state !== "done" && i.state !== "dropped");
+        const nodeById = new Map(nodes.map((n) => [n.id, n]));
+        let edges = collectEdges(nodes);
+
+        if (focusId != null && nodeById.has(focusId)) {
+            const subset = nHopNeighborhood(focusId, edges, hops);
+            nodes = nodes.filter((n) => subset.has(n.id));
+            edges = edges.filter((e) => subset.has(e.from) && subset.has(e.to));
+        }
+
+        if (nodes.length === 0) {
+            app.innerHTML = `
+                <h2>Dependencies</h2>
+                ${renderDepsToolbar(includeTerminal, focusId, hops)}
+                <div class="empty">No issues to graph.</div>`;
+            wireDepsToolbar();
+            return;
+        }
+
+        const layers = layerize(nodes, edges);
+        const layout = layoutLayers(layers);
+        const svg = renderGraphSvg(nodes, edges, layout);
+
+        app.innerHTML = `
+            <h2>Dependencies (${nodes.length} nodes, ${edges.length} edges)</h2>
+            <p class="meta">Edges flow downward: a node above blocks a node below it. Click a node for details.</p>
+            ${renderDepsToolbar(includeTerminal, focusId, hops)}
+            <div id="graph-container">${svg}</div>
+            <aside id="graph-panel" class="notice" style="display: none;"></aside>`;
+        wireDepsToolbar();
+        wireGraphInteraction(nodeById);
+    } catch (e) {
+        app.innerHTML = `<div class="empty">load failed: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function renderDepsToolbar(includeTerminal, focusId, hops) {
+    return `
+        <div class="toolbar">
+            <label><input type="checkbox" id="deps-include-terminal" ${includeTerminal ? "checked" : ""}> include terminal (done/dropped)</label>
+            <label>focus on issue <input id="deps-focus" type="number" value="${focusId ?? ""}" placeholder="id" style="width: 6em;"></label>
+            <label>hops <input id="deps-hops" type="number" value="${hops}" min="1" max="10" style="width: 4em;"></label>
+            <button id="deps-apply">Apply</button>
+            <button id="deps-clear-focus">Clear focus</button>
+        </div>`;
+}
+
+function wireDepsToolbar() {
+    const apply = document.getElementById("deps-apply");
+    const clearFocus = document.getElementById("deps-clear-focus");
+    if (apply) {
+        apply.onclick = () => {
+            const next = new URLSearchParams();
+            if (document.getElementById("deps-include-terminal").checked) next.set("all", "true");
+            const focus = document.getElementById("deps-focus").value.trim();
+            if (focus) {
+                next.set("focus", focus);
+                const hops = document.getElementById("deps-hops").value.trim();
+                if (hops && hops !== "1") next.set("hops", hops);
+            }
+            setHash("deps", next);
+        };
+    }
+    if (clearFocus) {
+        clearFocus.onclick = () => {
+            const next = new URLSearchParams();
+            if (document.getElementById("deps-include-terminal").checked) next.set("all", "true");
+            setHash("deps", next);
+        };
+    }
+}
+
+function collectEdges(nodes) {
+    const ids = new Set(nodes.map((n) => n.id));
+    const edges = [];
+    for (const n of nodes) {
+        for (const t of n.blocks) {
+            if (ids.has(t)) edges.push({ from: n.id, to: t });
+        }
+    }
+    return edges;
+}
+
+function nHopNeighborhood(focus, edges, hops) {
+    // Both directions: ancestors (things that block focus) and descendants
+    // (things focus blocks).
+    const inEdges = new Map();
+    const outEdges = new Map();
+    for (const e of edges) {
+        if (!outEdges.has(e.from)) outEdges.set(e.from, []);
+        if (!inEdges.has(e.to)) inEdges.set(e.to, []);
+        outEdges.get(e.from).push(e.to);
+        inEdges.get(e.to).push(e.from);
+    }
+    const visited = new Set([focus]);
+    let frontier = [focus];
+    for (let i = 0; i < hops; i++) {
+        const next = new Set();
+        for (const id of frontier) {
+            for (const adj of [...(outEdges.get(id) || []), ...(inEdges.get(id) || [])]) {
+                if (!visited.has(adj)) {
+                    visited.add(adj);
+                    next.add(adj);
+                }
+            }
+        }
+        frontier = [...next];
+    }
+    return visited;
+}
+
+function layerize(nodes, edges) {
+    // Longest path from any source. Source = node with no incoming edges
+    // (no `from` value in `from→to` set).
+    const nodeIds = new Set(nodes.map((n) => n.id));
+    const inDegree = new Map(nodes.map((n) => [n.id, 0]));
+    const outAdj = new Map(nodes.map((n) => [n.id, []]));
+    for (const e of edges) {
+        if (!nodeIds.has(e.from) || !nodeIds.has(e.to)) continue;
+        inDegree.set(e.to, (inDegree.get(e.to) || 0) + 1);
+        outAdj.get(e.from).push(e.to);
+    }
+    const layer = new Map(nodes.map((n) => [n.id, 0]));
+    // Kahn-like: process sources first, propagate +1 to successors.
+    const queue = [...nodes.filter((n) => inDegree.get(n.id) === 0).map((n) => n.id)];
+    const remaining = new Map(inDegree);
+    while (queue.length > 0) {
+        const id = queue.shift();
+        for (const next of outAdj.get(id) || []) {
+            layer.set(next, Math.max(layer.get(next), layer.get(id) + 1));
+            remaining.set(next, remaining.get(next) - 1);
+            if (remaining.get(next) === 0) queue.push(next);
+        }
+    }
+    // Group nodes by layer.
+    const byLayer = new Map();
+    for (const n of nodes) {
+        const l = layer.get(n.id) ?? 0;
+        if (!byLayer.has(l)) byLayer.set(l, []);
+        byLayer.get(l).push(n);
+    }
+    for (const arr of byLayer.values()) {
+        arr.sort((a, b) => a.id - b.id);
+    }
+    return byLayer;
+}
+
+function layoutLayers(byLayer) {
+    const layers = [...byLayer.entries()].sort((a, b) => a[0] - b[0]);
+    const positions = new Map();
+    const nodeWidth = 80;
+    const nodeHeight = 90;
+    const padding = 30;
+    const maxNodesInLayer = Math.max(1, ...layers.map(([, ns]) => ns.length));
+    const width = Math.max(600, maxNodesInLayer * nodeWidth + padding * 2);
+    layers.forEach(([layerIdx, layerNodes], i) => {
+        const y = padding + i * nodeHeight + 30;
+        const totalW = layerNodes.length * nodeWidth;
+        const xStart = (width - totalW) / 2 + nodeWidth / 2;
+        layerNodes.forEach((n, j) => {
+            positions.set(n.id, { x: xStart + j * nodeWidth, y, layer: layerIdx });
+        });
+    });
+    const height = layers.length * nodeHeight + padding * 2;
+    return { positions, width, height };
+}
+
+function renderGraphSvg(nodes, edges, layout) {
+    const { positions, width, height } = layout;
+    const arrowDef = `
+        <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
+                    markerUnits="strokeWidth" markerWidth="8" markerHeight="8" orient="auto">
+                <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
+            </marker>
+        </defs>`;
+    const edgeSvg = edges
+        .map((e) => {
+            const a = positions.get(e.from);
+            const b = positions.get(e.to);
+            if (!a || !b) return "";
+            // Offset so the line ends at the node's edge, not center.
+            return `<line x1="${a.x}" y1="${a.y + 22}" x2="${b.x}" y2="${b.y - 22}"
+                    stroke="var(--muted)" stroke-width="1.5" marker-end="url(#arrow)"/>`;
+        })
+        .join("");
+    const nodeSvg = nodes
+        .map((n) => {
+            const p = positions.get(n.id);
+            if (!p) return "";
+            const r = PRIORITY_RADIUS[n.priority] ?? DEFAULT_RADIUS;
+            const fill = STATE_COLORS[n.state] ?? "#888";
+            const strokeW = n.priority ? 3 : 1;
+            const blocker = n.blocker
+                ? `<circle cx="${p.x + r - 3}" cy="${p.y - r + 3}" r="5" fill="var(--warn)" stroke="var(--bg)" stroke-width="1.5"/>`
+                : "";
+            return `
+                <g class="graph-node" data-id="${n.id}" style="cursor: pointer;">
+                    <circle cx="${p.x}" cy="${p.y}" r="${r}" fill="${fill}" stroke="var(--fg)" stroke-width="${strokeW}"/>
+                    <text x="${p.x}" y="${p.y + 4}" text-anchor="middle" font-size="11" fill="var(--bg)" font-weight="600">${n.id}</text>
+                    ${blocker}
+                    <text x="${p.x}" y="${p.y + r + 14}" text-anchor="middle" font-size="10" fill="var(--fg)">${escapeHtml(truncate(n.title, 14))}</text>
+                </g>`;
+        })
+        .join("");
+    return `
+        <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" style="background: var(--bg-alt); border-radius: 4px;">
+            ${arrowDef}
+            ${edgeSvg}
+            ${nodeSvg}
+        </svg>
+        <div class="meta" style="margin-top: 0.5rem;">
+            ${Object.entries(STATE_COLORS)
+                .map(([s, c]) => `<span class="tag" style="background: ${c}; color: var(--bg); border-color: ${c};">${s}</span>`)
+                .join(" ")}
+            · larger circle = higher priority · orange dot = blocker set
+        </div>`;
+}
+
+function truncate(s, max) {
+    if (!s) return "";
+    if (s.length <= max) return s;
+    return s.slice(0, max - 1) + "…";
+}
+
+function wireGraphInteraction(nodeById) {
+    document.querySelectorAll("g.graph-node").forEach((g) => {
+        g.addEventListener("click", () => {
+            const id = Number(g.dataset.id);
+            const n = nodeById.get(id);
+            if (!n) return;
+            const panel = document.getElementById("graph-panel");
+            panel.style.display = "block";
+            panel.innerHTML = `
+                <strong>#${n.id}: ${escapeHtml(n.title)}</strong><br>
+                <span class="tag">${n.type}</span>
+                <span class="tag">${n.state}</span>
+                ${n.priority ? `<span class="tag priority-${n.priority}">${n.priority}</span>` : ""}
+                ${n.blocker ? `<span class="tag">blocker:${n.blocker}</span>` : ""}
+                ${n.epic ? `<span class="tag">epic:${escapeHtml(n.epic)}</span>` : ""}
+                <br>
+                Blocks: ${n.blocks.length === 0 ? "(none)" : n.blocks.map((id) => `<a href="#/issues/${id}">#${id}</a>`).join(", ")}<br>
+                Blocked by: ${n.blocked_by.length === 0 ? "(none)" : n.blocked_by.map((id) => `<a href="#/issues/${id}">#${id}</a>`).join(", ")}<br>
+                <a href="#/issues/${n.id}">open detail →</a>`;
+        });
+    });
+}
+
 // ---------- Schedule screen (web-ui.md#R8) ----------
 
 let scheduleActionableOnly = false;
@@ -840,6 +1118,7 @@ function connectSSE() {
         if (r.route === "inbox") renderInbox();
         else if (r.route === "issues") renderIssues(r.params);
         else if (r.route === "issue") renderIssue(r.id);
+        else if (r.route === "deps") renderDeps(r.params);
         else if (r.route === "schedule") renderSchedule();
         else if (r.route === "daemon") renderDaemon();
         // config screen does not auto-refresh on events

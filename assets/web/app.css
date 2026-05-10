@@ -236,3 +236,16 @@ details > summary {
 details[open] {
     padding-bottom: 0.75rem;
 }
+
+#graph-container {
+    overflow: auto;
+    margin: 0.5rem 0;
+}
+
+.graph-node:hover circle {
+    stroke-width: 4;
+}
+
+#graph-panel a {
+    color: var(--accent);
+}

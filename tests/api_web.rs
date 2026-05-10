@@ -88,6 +88,8 @@ fn root_serves_index_html_with_correct_content_type() {
     assert!(body.contains("data-route=\"schedule\""));
     // Slice 25: nav has the Config link.
     assert!(body.contains("data-route=\"config\""));
+    // Slice 26: nav has the Deps (graph) link.
+    assert!(body.contains("data-route=\"deps\""));
 }
 
 #[test]
@@ -121,6 +123,11 @@ fn app_js_is_served() {
     assert!(body.contains("requires_restart"));
     assert!(body.contains("wireFilterControls"));
     assert!(body.contains("setHash"));
+    // Slice 26: dependency graph view (hand-rolled SVG).
+    assert!(body.contains("renderDeps"));
+    assert!(body.contains("layerize"));
+    assert!(body.contains("nHopNeighborhood"));
+    assert!(body.contains("STATE_COLORS"));
 }
 
 #[test]
