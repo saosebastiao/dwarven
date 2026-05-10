@@ -3,16 +3,12 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
-
 use anyhow::{Context, Result, anyhow};
 use fs2::FileExt;
 
 use crate::daemon::pidfile::read_pid;
 use crate::issue::create::UserError;
 use crate::storage::config::{RepoPaths, require_initialized};
-
-const POLL_INTERVAL: Duration = Duration::from_millis(200);
 
 pub struct ServeArgs {
     pub repo_root: PathBuf,
@@ -67,18 +63,13 @@ pub fn run(args: ServeArgs) -> Result<()> {
     if !args.quiet {
         let port = read_port(&paths).unwrap_or(7777);
         println!("dwarven daemon started (PID {})", std::process::id());
-        // R5.5 promises a URL on startup. The HTTP listener doesn't exist
-        // yet (this slice is the daemon shell only), so the URL is the
-        // configured target rather than a confirmed-bound address.
         println!("http://127.0.0.1:{port} (HTTP server not yet implemented)");
         println!("press Ctrl-C or send SIGTERM to stop");
     }
 
-    // Main idle loop. Future slices replace this with the file watcher +
-    // HTTP server work loop, both of which check `term_flag` periodically.
-    while !term_flag.load(Ordering::Relaxed) {
-        std::thread::sleep(POLL_INTERVAL);
-    }
+    // Run the file watcher + reindex loop. Returns once term_flag is set
+    // (signal received).
+    crate::daemon::watcher::run(&paths, Arc::clone(&term_flag))?;
 
     if !args.quiet {
         println!("dwarven daemon stopping...");
