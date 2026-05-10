@@ -7,7 +7,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 
 use crate::api::error::ApiError;
-use crate::api::events::{EventKind, emit};
+use crate::api::events::EventKind;
 use crate::api::state::AppState;
 use crate::issue;
 use crate::issue::create::{NotFoundError, UserError};
@@ -124,8 +124,7 @@ pub async fn set_override(
     result?;
 
     // Emit an issue.changed event so subscribers refresh affected views.
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::IssueChanged,
         json!({
             "id": id,

@@ -11,7 +11,7 @@ use serde::Deserialize;
 use serde_json::Value;
 
 use crate::api::error::ApiError;
-use crate::api::events::{EventKind, emit};
+use crate::api::events::EventKind;
 use crate::api::state::AppState;
 use crate::api::types::{Comment, Issue};
 use crate::issue;
@@ -153,8 +153,7 @@ pub async fn create_issue(
     let paths = app.paths.clone();
     let issue =
         run_blocking(move || read_issue_for_response(&paths, id)).await?;
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::IssueCreated,
         serde_json::json!({"id": id}),
     );
@@ -200,8 +199,7 @@ pub async fn edit_issue(
 
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::IssueChanged,
         serde_json::json!({"id": id, "kind": "edit"}),
     );
@@ -248,8 +246,7 @@ pub async fn append_comment(
     .await?;
 
     let seq = comments.last().map(|c| c.seq).unwrap_or(0);
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::CommentAdded,
         serde_json::json!({"issue": id, "seq": seq}),
     );
@@ -320,8 +317,7 @@ pub async fn transition(
     } else {
         EventKind::IssueChanged
     };
-    emit(
-        &app.events,
+    app.events.emit(
         kind,
         serde_json::json!({"id": id, "to": target_for_event}),
     );
@@ -364,8 +360,7 @@ pub async fn set_blocker(
 
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::IssueChanged,
         serde_json::json!({"id": id, "kind": "blocker-set", "blocker": blocker_for_event}),
     );
@@ -404,8 +399,7 @@ pub async fn clear_blocker(
 
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::IssueChanged,
         serde_json::json!({"id": id, "kind": "blocker-cleared"}),
     );
@@ -439,8 +433,7 @@ pub async fn set_priority(
     .await?;
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::IssueChanged,
         serde_json::json!({"id": id, "kind": "priority-set", "priority": priority_for_event}),
     );
@@ -464,8 +457,7 @@ pub async fn clear_priority(
     .await?;
     let paths = app.paths.clone();
     let issue = run_blocking(move || read_issue_for_response(&paths, id)).await?;
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::IssueChanged,
         serde_json::json!({"id": id, "kind": "priority-cleared"}),
     );
@@ -510,8 +502,7 @@ pub async fn add_dep(
     })
     .await?;
 
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::DependencyAdded,
         serde_json::json!({"from": from_id, "to": to_id}),
     );
@@ -537,8 +528,7 @@ pub async fn remove_dep(
         issue::dep::run_remove(args).map_err(classify)
     })
     .await?;
-    emit(
-        &app.events,
+    app.events.emit(
         EventKind::DependencyRemoved,
         serde_json::json!({"from": from, "to": to}),
     );

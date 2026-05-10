@@ -7,7 +7,7 @@ use std::time::{Duration, Instant};
 use anyhow::{Context, Result};
 use notify::{Event, EventKind as FsEventKind, RecommendedWatcher, RecursiveMode, Watcher};
 
-use crate::api::events::{EventKind, EventTx, emit};
+use crate::api::events::{EventBus, EventKind};
 use crate::index;
 use crate::index::IndexHealth;
 use crate::storage::config::RepoPaths;
@@ -28,7 +28,7 @@ const DEFAULT_RECONCILE_SECS: u64 = 60;
 
 /// Run the daemon's watch + reindex loop. Returns once `term_flag` is set.
 /// Performs an initial reindex on entry per `coordination-hub.md#R3.3` step 5.
-pub fn run(paths: &RepoPaths, term_flag: Arc<AtomicBool>, events: EventTx) -> Result<()> {
+pub fn run(paths: &RepoPaths, term_flag: Arc<AtomicBool>, events: EventBus) -> Result<()> {
     let (tx, rx) = channel::<()>();
     let watcher = spawn_watcher(paths, tx.clone())?;
     let _watcher = watcher; // keep alive; drop on return tears it down
@@ -66,8 +66,7 @@ pub fn run(paths: &RepoPaths, term_flag: Arc<AtomicBool>, events: EventTx) -> Re
         "[daemon] initial reindex: {} issues, {} comments, {} edges",
         stats.issues, stats.comments, stats.edges
     );
-    emit(
-        &events,
+    events.emit(
         EventKind::DaemonReindexed,
         serde_json::json!({
             "reason": "startup",
@@ -177,7 +176,7 @@ fn is_internal_artifact(path: &Path) -> bool {
         || name.starts_with('.') && name.contains(".tmp.")
 }
 
-fn reindex_log(paths: &RepoPaths, last_reindex: &mut Instant, reason: &str, events: &EventTx) {
+fn reindex_log(paths: &RepoPaths, last_reindex: &mut Instant, reason: &str, events: &EventBus) {
     match index::rebuild(paths) {
         Ok(stats) => {
             *last_reindex = Instant::now();
@@ -185,8 +184,7 @@ fn reindex_log(paths: &RepoPaths, last_reindex: &mut Instant, reason: &str, even
                 "[daemon] reindex ({reason}): {} issues, {} comments, {} edges",
                 stats.issues, stats.comments, stats.edges
             );
-            emit(
-                events,
+            events.emit(
                 EventKind::DaemonReindexed,
                 serde_json::json!({
                     "reason": reason,
@@ -228,7 +226,7 @@ fn drain_disconnected_until_term(
     last_reindex: &mut Instant,
     paths: &RepoPaths,
     reconcile_interval: Duration,
-    events: &EventTx,
+    events: &EventBus,
 ) {
     while !term_flag.load(Ordering::Relaxed) {
         std::thread::sleep(TICK);

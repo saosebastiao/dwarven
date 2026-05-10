@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
-use crate::api::events::EventTx;
+use crate::api::events::EventBus;
 use crate::storage::config::RepoPaths;
 
 /// Shared state injected into every HTTP handler via `axum::extract::State`.
@@ -16,13 +16,13 @@ pub struct AppStateInner {
     /// daemon's lifecycle code in `serve.rs`; HTTP handlers may set it
     /// (POST /daemon/shutdown) but never clear.
     pub term_flag: Arc<AtomicBool>,
-    /// In-process broadcast channel; mutation handlers and the watcher
+    /// In-process bus of change events; mutation handlers and the watcher
     /// emit events, the SSE handler subscribes per-connection.
-    pub events: EventTx,
+    pub events: EventBus,
 }
 
 impl AppState {
-    pub fn new(paths: RepoPaths, term_flag: Arc<AtomicBool>, events: EventTx) -> Self {
+    pub fn new(paths: RepoPaths, term_flag: Arc<AtomicBool>, events: EventBus) -> Self {
         AppState(Arc::new(AppStateInner {
             paths,
             started_at: Instant::now(),

@@ -221,10 +221,12 @@ fn replay_refresh_required_when_id_too_old() {
     let guard = DaemonGuard::spawn(tmp.path());
     guard.wait_ready();
 
-    // Emit way more events than the ring capacity (256). Each issue create
-    // emits at least 2 (issue.created + daemon.reindexed via watcher), so
-    // 200 issues → ~400 events well past the buffer.
-    for i in 0..200 {
+    // Emit more events than the ring capacity (256). Each issue create
+    // emits 1 issue.created from the mutation handler; the watcher's
+    // daemon.reindexed fires once per debounce burst (~1 per 150ms) so
+    // the contribution is small. 350 creates ~= 350 events past
+    // REPLAY_CAPACITY, evicting the ring's oldest entries.
+    for i in 0..350 {
         create_issue(&guard, &format!("evict-{i}"));
     }
 

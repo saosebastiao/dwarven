@@ -72,7 +72,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
     // Spawn the HTTP server first so a bind failure (e.g., port in use)
     // surfaces before we publish anything else. The HTTP thread terminates
     // when term_flag flips.
-    let events = crate::api::events::make_channel();
+    let events = crate::api::events::EventBus::new();
     let http_handle = crate::api::server::spawn(
         paths.clone(),
         bind,
