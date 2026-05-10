@@ -77,11 +77,29 @@ async function fetchJSON(method, path, body) {
 // ---------- Routing ----------
 
 function parseHash() {
-    const h = window.location.hash.replace(/^#\/?/, "");
-    if (!h) return { route: "inbox" };
-    const parts = h.split("/");
-    if (parts[0] === "issues" && parts[1]) return { route: "issue", id: parts[1] };
-    return { route: parts[0] };
+    const raw = window.location.hash.replace(/^#\/?/, "");
+    const [pathPart, queryPart = ""] = raw.split("?");
+    const params = new URLSearchParams(queryPart);
+    if (!pathPart) return { route: "inbox", params };
+    const parts = pathPart.split("/");
+    if (parts[0] === "issues" && parts[1]) {
+        return { route: "issue", id: parts[1], params };
+    }
+    return { route: parts[0], params };
+}
+
+function setHash(route, params) {
+    let h = `#/${route}`;
+    if (params instanceof URLSearchParams) {
+        const s = params.toString();
+        if (s) h += `?${s}`;
+    }
+    if (window.location.hash !== h) {
+        window.location.hash = h;
+    } else {
+        // Same hash: re-render manually since hashchange won't fire.
+        render();
+    }
 }
 
 async function render() {
@@ -90,10 +108,11 @@ async function render() {
         .querySelectorAll("nav a")
         .forEach((a) => a.classList.toggle("active", a.dataset.route === r.route || (a.dataset.route === "issues" && r.route === "issue")));
     if (r.route === "inbox") return renderInbox();
-    if (r.route === "issues") return renderIssues();
+    if (r.route === "issues") return renderIssues(r.params);
     if (r.route === "issue") return renderIssue(r.id);
     if (r.route === "schedule") return renderSchedule();
     if (r.route === "daemon") return renderDaemon();
+    if (r.route === "config") return renderConfig();
     app.innerHTML = `<div class="empty">Unknown route. <a href="#/inbox">Back to Inbox</a></div>`;
 }
 
@@ -147,21 +166,47 @@ async function renderInbox() {
 
 // ---------- Issues list ----------
 
-async function renderIssues() {
+async function renderIssues(params) {
     app.innerHTML = `<div class="empty">loading…</div>`;
     try {
-        const params = new URLSearchParams(window.location.search);
         const qs = params.toString() ? `?${params.toString()}` : "";
         const items = await getJSON(`/issues${qs}`);
         state.issues = items;
+        const stateField = params.get("state") ?? "";
+        const typeField = params.get("type") ?? "";
+        const priorityField = params.get("priority") ?? "";
+        const epicField = params.get("epic") ?? "";
+        const grepField = params.get("grep") ?? "";
+        const scope = params.get("all") === "true"
+            ? "all"
+            : params.get("closed") === "true"
+                ? "closed"
+                : "open";
+
         const filterBar = `
-            <div class="toolbar">
-                <button data-filter="">all open</button>
-                <button data-filter="?closed=true">closed</button>
-                <button data-filter="?all=true">all</button>
-            </div>`;
+            <details ${qs ? "open" : ""}>
+                <summary>Filter${qs ? ` (${params.toString()})` : ""}</summary>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                    <div><label>state (csv)</label><input id="f-state" value="${escapeHtml(stateField)}" placeholder="plan,test"></div>
+                    <div><label>type (csv)</label><input id="f-type" value="${escapeHtml(typeField)}" placeholder="feature,bug"></div>
+                    <div><label>priority (csv; or 'unset')</label><input id="f-priority" value="${escapeHtml(priorityField)}" placeholder="p0,p1"></div>
+                    <div><label>epic</label><input id="f-epic" value="${escapeHtml(epicField)}"></div>
+                    <div style="grid-column: span 2;"><label>grep title + body</label><input id="f-grep" value="${escapeHtml(grepField)}" placeholder="literal substring"></div>
+                </div>
+                <div class="toolbar">
+                    <label><input type="radio" name="scope" value="open" ${scope === "open" ? "checked" : ""}> open (active states)</label>
+                    <label><input type="radio" name="scope" value="closed" ${scope === "closed" ? "checked" : ""}> closed (terminal only)</label>
+                    <label><input type="radio" name="scope" value="all" ${scope === "all" ? "checked" : ""}> all</label>
+                </div>
+                <div class="toolbar">
+                    <button id="f-apply">Apply filter</button>
+                    <button id="f-clear">Clear</button>
+                </div>
+            </details>`;
+
         if (items.length === 0) {
             app.innerHTML = `<h2>Issues</h2>${filterBar}<div class="empty">No issues match.</div>`;
+            wireFilterControls();
             return;
         }
         app.innerHTML = `
@@ -187,15 +232,37 @@ async function renderIssues() {
                     .join("")}</tbody>
             </table>`;
         wireRowClicks();
-        document.querySelectorAll("[data-filter]").forEach((btn) => {
-            btn.onclick = () => {
-                const f = btn.dataset.filter;
-                window.location.hash = "#/issues";
-                window.location.search = f;
-            };
-        });
+        wireFilterControls();
     } catch (e) {
         app.innerHTML = `<div class="empty">load failed: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function wireFilterControls() {
+    const apply = document.getElementById("f-apply");
+    const clear = document.getElementById("f-clear");
+    if (apply) {
+        apply.onclick = () => {
+            const next = new URLSearchParams();
+            const fields = [
+                ["state", "f-state"],
+                ["type", "f-type"],
+                ["priority", "f-priority"],
+                ["epic", "f-epic"],
+                ["grep", "f-grep"],
+            ];
+            for (const [key, id] of fields) {
+                const v = document.getElementById(id).value.trim();
+                if (v) next.set(key, v);
+            }
+            const scope = document.querySelector("input[name='scope']:checked")?.value;
+            if (scope === "closed") next.set("closed", "true");
+            else if (scope === "all") next.set("all", "true");
+            setHash("issues", next);
+        };
+    }
+    if (clear) {
+        clear.onclick = () => setHash("issues", new URLSearchParams());
     }
 }
 
@@ -625,6 +692,142 @@ async function renderDaemon() {
     }
 }
 
+// ---------- Config screen (web-ui.md#R10) ----------
+
+const RESTART_REQUIRED_KEYS = new Set(["daemon.port", "daemon.bind"]);
+
+async function renderConfig() {
+    app.innerHTML = `<div class="empty">loading…</div>`;
+    try {
+        const cfg = await getJSON("/config");
+        app.innerHTML = `
+            <h2>Configuration</h2>
+            <p class="meta">Edits PATCH only the changed fields. Keys flagged "restart" require <code>dwarven daemon restart</code> to take effect.</p>
+            <form id="config-form">
+                ${renderConfigSection("repo", cfg.repo, { id: { readonly: true } })}
+                ${renderConfigSection("counters", cfg.counters, { next_issue_id: { warn: "internal counter; edit at your own risk" } })}
+                ${renderConfigSection("daemon", cfg.daemon, { port: { restart: true }, bind: { restart: true } })}
+                ${renderConfigSection("scheduler", flattenForForm(cfg.scheduler), {})}
+                ${renderConfigSection("triage", cfg.triage, {})}
+                <div class="toolbar">
+                    <button type="button" id="config-save">Save changes</button>
+                    <button type="button" id="config-reset">Reset</button>
+                </div>
+                <div id="config-result"></div>
+            </form>
+            <h3>Raw config.toml</h3>
+            <pre class="body" id="config-raw">${escapeHtml(JSON.stringify(cfg, null, 2))}</pre>`;
+        wireConfigSave(cfg);
+    } catch (e) {
+        app.innerHTML = `<div class="empty">load failed: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function renderConfigSection(name, table, hints) {
+    if (!table || typeof table !== "object") return "";
+    const rows = Object.entries(table)
+        .map(([key, value]) => {
+            const fullKey = `${name}.${key}`;
+            const hint = hints[key] || {};
+            const restart = RESTART_REQUIRED_KEYS.has(fullKey) || hint.restart;
+            const readonly = hint.readonly ? "readonly" : "";
+            const flag = restart ? `<span class="tag">restart</span>` : "";
+            const warn = hint.warn ? `<div class="meta">${hint.warn}</div>` : "";
+            const display =
+                typeof value === "object" && value !== null
+                    ? JSON.stringify(value)
+                    : String(value);
+            const inputType =
+                typeof value === "number" ? "number" : typeof value === "boolean" ? "checkbox" : "text";
+            const inputAttr =
+                inputType === "checkbox"
+                    ? `type="checkbox" ${value ? "checked" : ""}`
+                    : `type="${inputType}" value="${escapeHtml(display)}"`;
+            return `
+                <div style="margin: 0.5rem 0;">
+                    <label>${fullKey} ${flag}</label>
+                    <input data-key="${fullKey}" data-orig="${escapeHtml(display)}" data-kind="${inputType}" ${inputAttr} ${readonly}>
+                    ${warn}
+                </div>`;
+        })
+        .join("");
+    return `<details ${["daemon", "scheduler"].includes(name) ? "open" : ""}>
+        <summary>[${name}]</summary>
+        ${rows}
+    </details>`;
+}
+
+function flattenForForm(obj, prefix = "") {
+    // The scheduler.priority_weights subtable shows as nested keys in the
+    // form (e.g., "priority_weights.p0").
+    if (!obj || typeof obj !== "object") return obj;
+    const out = {};
+    for (const [k, v] of Object.entries(obj)) {
+        if (v && typeof v === "object" && !Array.isArray(v)) {
+            for (const [k2, v2] of Object.entries(v)) {
+                out[`${k}.${k2}`] = v2;
+            }
+        } else {
+            out[k] = v;
+        }
+    }
+    return out;
+}
+
+function wireConfigSave(originalCfg) {
+    document.getElementById("config-save").onclick = async () => {
+        const inputs = document.querySelectorAll("input[data-key]");
+        const changes = {};
+        let anyChange = false;
+        for (const inp of inputs) {
+            if (inp.readOnly) continue;
+            const key = inp.dataset.key;
+            const orig = inp.dataset.orig;
+            const kind = inp.dataset.kind;
+            const current = kind === "checkbox" ? String(inp.checked) : inp.value;
+            if (current === orig) continue;
+            anyChange = true;
+            const path = key.split(".");
+            const value =
+                kind === "checkbox"
+                    ? inp.checked
+                    : kind === "number"
+                        ? Number(inp.value)
+                        : inp.value;
+            insertNested(changes, path, value);
+        }
+        if (!anyChange) {
+            document.getElementById("config-result").innerHTML =
+                `<div class="notice">No changes.</div>`;
+            return;
+        }
+        try {
+            const resp = await patchJSON("/config", changes);
+            const note = resp.requires_restart
+                ? `<div class="notice">Saved. <strong>Restart required</strong> for daemon.port / daemon.bind to take effect.</div>`
+                : `<div class="notice">Saved.</div>`;
+            document.getElementById("config-result").innerHTML = note;
+            // Re-render to pick up server-canonical state.
+            setTimeout(renderConfig, 800);
+        } catch (e) {
+            document.getElementById("config-result").innerHTML =
+                `<div class="notice">save failed: ${escapeHtml(e.message)}</div>`;
+        }
+    };
+    document.getElementById("config-reset").onclick = () => renderConfig();
+    void originalCfg;
+}
+
+function insertNested(target, pathParts, value) {
+    let cur = target;
+    for (let i = 0; i < pathParts.length - 1; i++) {
+        const k = pathParts[i];
+        if (!cur[k] || typeof cur[k] !== "object") cur[k] = {};
+        cur = cur[k];
+    }
+    cur[pathParts[pathParts.length - 1]] = value;
+}
+
 // ---------- SSE subscription ----------
 
 function connectSSE() {
@@ -635,10 +838,11 @@ function connectSSE() {
     const refresh = () => {
         const r = parseHash();
         if (r.route === "inbox") renderInbox();
-        else if (r.route === "issues") renderIssues();
+        else if (r.route === "issues") renderIssues(r.params);
         else if (r.route === "issue") renderIssue(r.id);
         else if (r.route === "schedule") renderSchedule();
         else if (r.route === "daemon") renderDaemon();
+        // config screen does not auto-refresh on events
     };
     ["issue.created", "issue.changed", "issue.closed", "comment.added",
      "dependency.added", "dependency.removed", "daemon.reindexed"].forEach((name) => {

@@ -86,6 +86,8 @@ fn root_serves_index_html_with_correct_content_type() {
     assert!(body.contains("<script src=\"/app.js\">"));
     // Slice 22: nav has the Schedule link.
     assert!(body.contains("data-route=\"schedule\""));
+    // Slice 25: nav has the Config link.
+    assert!(body.contains("data-route=\"config\""));
 }
 
 #[test]
@@ -113,6 +115,12 @@ fn app_js_is_served() {
     assert!(body.contains("patchJSON"));
     assert!(body.contains("deleteJSON"));
     assert!(body.contains("putJSON"));
+    // Slice 25: Config screen + URL filter persistence.
+    assert!(body.contains("renderConfig"));
+    assert!(body.contains("RESTART_REQUIRED_KEYS"));
+    assert!(body.contains("requires_restart"));
+    assert!(body.contains("wireFilterControls"));
+    assert!(body.contains("setHash"));
 }
 
 #[test]
