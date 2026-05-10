@@ -12,6 +12,8 @@ pub struct Issue {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub priority: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub effective_priority_override: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub blocker: Option<String>,
     pub blocked_by: Vec<u64>,
     pub blocks: Vec<u64>,
@@ -31,6 +33,7 @@ impl Issue {
             issue_type,
             state,
             priority,
+            effective_priority_override,
             blocker,
             blocked_by,
             blocks,
@@ -45,6 +48,7 @@ impl Issue {
             r#type: issue_type,
             state,
             priority,
+            effective_priority_override,
             blocker,
             blocked_by,
             blocks,

@@ -19,6 +19,8 @@ pub struct IssueFrontmatter {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub priority: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub effective_priority_override: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blocker: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub blocked_by: Vec<u64>,
@@ -109,6 +111,7 @@ mod tests {
             issue_type: "feature".into(),
             state: "pm".into(),
             priority: None,
+            effective_priority_override: None,
             blocker: None,
             blocked_by: vec![],
             blocks: vec![],

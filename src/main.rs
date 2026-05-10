@@ -10,6 +10,7 @@ mod daemon;
 mod index;
 mod init;
 mod issue;
+mod scheduler;
 mod storage;
 mod time;
 
@@ -25,6 +26,9 @@ use issue::dep::{AddArgs as DepAddArgs, RemoveArgs as DepRemoveArgs};
 use issue::edit::EditArgs;
 use issue::list::{ListArgs, SortField};
 use issue::priority::PriorityArgs;
+use issue::priority_override::{
+    ClearArgs as POClearArgs, SetArgs as POSetArgs,
+};
 use issue::transition::TransitionArgs;
 use issue::view::ViewArgs;
 
@@ -138,6 +142,8 @@ enum IssueAction {
     },
     /// Set the issue's priority (p0/p1/p2). Maintainer-only by convention.
     Priority(IssuePriorityArgs),
+    /// Set or clear the scheduler effective-priority override (v2).
+    PriorityOverride(IssuePriorityOverrideArgs),
     /// Edit low-churn frontmatter fields: --title, --type, --epic.
     Edit(IssueEditArgs),
     /// Manage dependency edges between issues.
@@ -195,6 +201,25 @@ struct IssuePriorityArgs {
     id: u64,
     /// Priority value: p0, p1, p2.
     priority: String,
+}
+
+#[derive(Args)]
+#[command(group(
+    clap::ArgGroup::new("po_action")
+        .args(["value", "clear"])
+        .required(true)
+        .multiple(false)
+))]
+struct IssuePriorityOverrideArgs {
+    /// Issue id.
+    id: u64,
+    /// Override value (any finite number; higher = ranked higher).
+    /// Negative values are accepted; pass them after `--` if needed.
+    #[arg(allow_hyphen_values = true)]
+    value: Option<f64>,
+    /// Clear the override and restore algorithmic ranking.
+    #[arg(long)]
+    clear: bool,
 }
 
 #[derive(Args)]
@@ -620,6 +645,26 @@ fn main() {
                     priority: args.priority,
                 };
                 map_issue(issue::priority::run(pri_args))
+            }
+            IssueAction::PriorityOverride(args) => {
+                if args.clear {
+                    let clear_args = POClearArgs {
+                        repo_root,
+                        quiet: cli.quiet,
+                        json: cli.json,
+                        id: args.id,
+                    };
+                    map_issue(issue::priority_override::run_clear(clear_args))
+                } else {
+                    let set_args = POSetArgs {
+                        repo_root,
+                        quiet: cli.quiet,
+                        json: cli.json,
+                        id: args.id,
+                        value: args.value.expect("clap group requires one of value/clear"),
+                    };
+                    map_issue(issue::priority_override::run_set(set_args))
+                }
             }
             IssueAction::Edit(args) => {
                 let edit_args = EditArgs {

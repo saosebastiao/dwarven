@@ -6,5 +6,6 @@ pub mod dep;
 pub mod edit;
 pub mod list;
 pub mod priority;
+pub mod priority_override;
 pub mod transition;
 pub mod view;
