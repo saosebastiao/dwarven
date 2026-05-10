@@ -6,3 +6,6 @@
 
 # Daemon PID file. Per coordination-hub.md#R3.5.
 .daemon.pid
+
+# Lock file for the issue-id counter. Single-machine; never committed.
+.config.lock
