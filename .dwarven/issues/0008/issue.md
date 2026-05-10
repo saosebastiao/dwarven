@@ -1,13 +1,13 @@
 ---
 id: 8
 title: docs/architecture/*.md write-ups for v1+v2 implementation decisions
-type: doc
-state: doc
+type: arch
+state: done
 priority: p2
 epic: docs-architecture
 created: 2026-05-10T02:04:22Z
 created_by: maintainer
-updated: 2026-05-10T02:04:22Z
+updated: 2026-05-10T22:08:59Z
 ---
 30 commits of v1+v2 implementation have shipped without corresponding docs/architecture/ entries. The architectural choices are spread across commit messages and code comments. Posterity needs a more findable record.
 
