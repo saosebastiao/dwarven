@@ -10,6 +10,12 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- Daemon startup now probes the existing SQLite index for health
+  (`coordination-hub.md#R7.3` + `#R7.4`) before performing the
+  unconditional reindex. One of four log lines reports whether the
+  prior index was missing, healthy, corrupt, or had a schema
+  version mismatch. The unconditional rebuild per R3.3 step 5 is
+  preserved; the probe is observability only. (#1)
 - v0.1 architecture locked in `README.md` and `CLAUDE.md`.
 - Formal v0.1 specification at `docs/specs/dwarven.md`.
 - Bootstrap scaffolding: `docs/specs/`, `docs/architecture/`, `docs/plans/`.

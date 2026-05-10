@@ -2,12 +2,12 @@
 id: 1
 title: 'Daemon: SQLite integrity check + schema-version mismatch rebuild on startup'
 type: feature
-state: pm
+state: done
 priority: p1
 epic: daemon-polish
 created: 2026-05-10T02:02:52Z
 created_by: maintainer
-updated: 2026-05-10T02:02:52Z
+updated: 2026-05-10T05:46:26Z
 ---
 Per coordination-hub.md#R7.3 the daemon should run `PRAGMA integrity_check` on the index at startup and rebuild from `.dwarven/` files on failure. R7.4 adds: the index records the schema version in a meta table; if the recorded version doesn't match the daemon's expected version, rebuild from files.
 
