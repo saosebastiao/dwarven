@@ -189,28 +189,5 @@ fn daemon_shutdown_terminates_process() {
     panic!("daemon did not shut down within timeout");
 }
 
-#[test]
-fn scheduler_stubs_return_501() {
-    let tmp = fresh_repo();
-    let guard = DaemonGuard::spawn(tmp.path());
-    guard.wait_ready();
-
-    for (method, path) in [
-        ("GET", "/api/v1/scheduler/queue"),
-        ("POST", "/api/v1/scheduler/override"),
-    ] {
-        let err = ureq::request(method, &guard.url(path))
-            .set("Content-Type", "application/json")
-            .send_string("")
-            .unwrap_err();
-        let resp = match err {
-            ureq::Error::Status(code, r) => {
-                assert_eq!(code, 501, "{method} {path} expected 501, got {code}");
-                r
-            }
-            other => panic!("expected status error from {method} {path}, got {other:?}"),
-        };
-        let body: Value = resp.into_json().unwrap();
-        assert_eq!(body["error"], "not_implemented");
-    }
-}
+// Removed: scheduler endpoints were 501 stubs in slice 16; slice 21 made
+// them real. See tests/api_scheduler.rs for the current coverage.

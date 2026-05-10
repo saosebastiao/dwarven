@@ -4,6 +4,7 @@ pub mod error;
 pub mod events;
 pub mod issues;
 pub mod mutations;
+pub mod scheduler;
 pub mod server;
 pub mod state;
 pub mod types;

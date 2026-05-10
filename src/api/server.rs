@@ -14,6 +14,7 @@ use crate::api::error::ApiError;
 use crate::api::events as api_events;
 use crate::api::issues;
 use crate::api::mutations;
+use crate::api::scheduler as api_scheduler;
 use crate::api::state::AppState;
 use crate::api::types::DaemonStatus;
 use crate::storage::config::RepoPaths;
@@ -129,10 +130,10 @@ fn router(state: AppState) -> axum::Router {
         )
         .route("/api/v1/daemon/shutdown", post(daemon_ops::shutdown))
         .route("/api/v1/daemon/reindex", post(daemon_ops::reindex))
-        .route("/api/v1/scheduler/queue", get(daemon_ops::scheduler_queue))
+        .route("/api/v1/scheduler/queue", get(api_scheduler::queue))
         .route(
             "/api/v1/scheduler/override",
-            post(daemon_ops::scheduler_override),
+            post(api_scheduler::set_override),
         )
         .route("/api/v1/events", get(api_events::sse_handler))
         .route("/", get(crate::api::web::index))

@@ -32,22 +32,4 @@ pub async fn reindex(State(app): State<AppState>) -> Result<Json<Value>, ApiErro
     })))
 }
 
-/// GET /api/v1/scheduler/queue — v1 stub per `web-api.md#R4.9.1`.
-pub async fn scheduler_queue() -> Result<Json<Value>, ApiError> {
-    Err(ApiError {
-        status: StatusCode::NOT_IMPLEMENTED,
-        error: "not_implemented".to_string(),
-        message: "scheduler queue lands in v2 per dep-graph.md".to_string(),
-        details: None,
-    })
-}
-
-/// POST /api/v1/scheduler/override — v1 stub per `web-api.md#R4.9.1`.
-pub async fn scheduler_override() -> Result<Json<Value>, ApiError> {
-    Err(ApiError {
-        status: StatusCode::NOT_IMPLEMENTED,
-        error: "not_implemented".to_string(),
-        message: "scheduler override lands in v2 per dep-graph.md".to_string(),
-        details: None,
-    })
-}
+// Scheduler endpoints moved to crate::api::scheduler in slice 21.

@@ -10,6 +10,7 @@ mod daemon;
 mod index;
 mod init;
 mod issue;
+mod schedule_cli;
 mod scheduler;
 mod storage;
 mod time;
@@ -82,11 +83,38 @@ enum Command {
     /// Run the coordination hub daemon in the foreground.
     Serve,
 
+    /// Print the top N issues from the dep-graph scheduler (v2).
+    Schedule {
+        #[command(subcommand)]
+        action: ScheduleAction,
+    },
+
     /// Manage the running daemon (status / stop / restart).
     Daemon {
         #[command(subcommand)]
         action: DaemonAction,
     },
+}
+
+#[derive(Subcommand)]
+enum ScheduleAction {
+    /// Print the next N issues to work on.
+    Next(ScheduleNextArgs),
+}
+
+#[derive(Args)]
+struct ScheduleNextArgs {
+    /// Restrict to issues currently in this state (e.g. `plan`).
+    #[arg(long)]
+    state: Option<String>,
+
+    /// How many rows to print.
+    #[arg(long, default_value_t = 1)]
+    count: usize,
+
+    /// Only show issues whose dependencies are clear.
+    #[arg(long)]
+    actionable_only: bool,
 }
 
 #[derive(Subcommand)]
@@ -467,6 +495,19 @@ fn main() {
             quiet: cli.quiet,
             json: cli.json,
         })),
+        Command::Schedule { action } => match action {
+            ScheduleAction::Next(args) => {
+                let next_args = schedule_cli::NextArgs {
+                    repo_root,
+                    quiet: cli.quiet,
+                    json: cli.json,
+                    state: args.state,
+                    count: args.count,
+                    actionable_only: args.actionable_only,
+                };
+                map_issue(schedule_cli::run_next(next_args))
+            }
+        },
         Command::Serve => match daemon::serve::run(ServeArgs {
             repo_root,
             quiet: cli.quiet,
