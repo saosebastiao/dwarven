@@ -1,35 +1,33 @@
 {
+  "hooks": {
+    "PreToolUse": [
+      {
+        "command": ".claude/hooks/pre-tool-use.sh",
+        "matcher": "Bash"
+      }
+    ],
+    "SessionStart": [
+      {
+        "command": ".claude/hooks/session-start.sh"
+      }
+    ]
+  },
   "permissions": {
     "allow": [
+      "Agent",
+      "Read",
+      "AskUserQuestion",
       "Bash(git status:*)",
-      "Bash(git log:*)",
       "Bash(git diff:*)",
+      "Bash(git log:*)",
       "Bash(git show:*)",
       "Bash(git branch:*)",
       "Bash(git rev-parse:*)",
       "Bash(git merge-base:*)",
-      "Bash(git checkout:*)",
-      "Bash(git add:*)",
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(git fetch:*)",
-      "Bash(git pull:*)",
-      "Bash(git rm:*)",
-      "Bash(gh issue list:*)",
-      "Bash(gh issue view:*)",
-      "Bash(gh issue create:*)",
-      "Bash(gh issue edit:*)",
-      "Bash(gh issue comment:*)",
-      "Bash(gh issue close:*)",
-      "Bash(gh issue search:*)",
-      "Bash(gh pr list:*)",
-      "Bash(gh pr view:*)",
-      "Bash(gh pr create:*)",
-      "Bash(gh pr review:*)",
-      "Bash(gh pr comment:*)",
-      "Bash(gh pr merge:*)",
-      "Bash(gh pr checks:*)",
-      "Bash(gh label list:*)"
+      "Bash(dwarven --actor maintainer issue view:*)",
+      "Bash(dwarven --actor maintainer issue list:*)",
+      "Bash(dwarven --actor maintainer daemon status:*)",
+      "Bash(dwarven --actor maintainer config get:*)"
     ],
     "deny": [
       "Bash(git push --force:*)",
@@ -39,12 +37,18 @@
       "Bash(git checkout -- .)",
       "Bash(git restore .)",
       "Bash(git clean -f:*)",
+      "Bash(git branch -D:*)",
+      "Bash(git push origin --delete:*)",
       "Bash(rm -rf:*)",
-      "Bash(gh repo create:*)",
-      "Bash(gh repo delete:*)",
-      "Bash(gh repo edit:*)",
-      "Bash(gh repo archive:*)",
-      "Bash(gh release delete:*)"
+      "Bash(rm -f:*)",
+      "Bash(dwarven serve:*)",
+      "Bash(dwarven daemon:*)",
+      "Bash(dwarven init:*)",
+      "Bash(dwarven config set:*)",
+      "Bash(dwarven reindex:*)",
+      "Bash(dwarven issue priority:*)",
+      "Bash(dwarven issue priority-override:*)",
+      "Bash(dwarven issue transition * --override:*)"
     ]
   }
 }
