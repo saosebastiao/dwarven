@@ -25,7 +25,13 @@ pub struct TriageSection {
     pub stale_threshold_days: u64,
 }
 
+/// Validated config bundle. The fields aren't yet consumed downstream of
+/// the serve.rs validation gate — daemon currently re-reads daemon.port,
+/// the scheduler re-reads scheduler.*, etc., from individual files. A
+/// future slice can route those reads through this single read-and-validate
+/// pass for one-shot initialization.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct FullConfig {
     pub daemon: DaemonSection,
     pub scheduler: SchedulerConfig,
