@@ -160,13 +160,13 @@ git clone <this-repo> ~/path/to/dwarven
 
 | Area | State |
 |---|---|
-| v2 specs (`docs/specs/*.md`) | All 10 constituent specs drafted (top-level + storage + work-states + coordination-hub + CLI + web-api + web-ui + dialogue + agent-roster + host-adapter + dep-graph). |
-| `dwarven` Rust binary | Not started. v1 deliverable. |
-| Web UI | Not started. v1 deliverable. |
-| Claude Code adapter | Not started. v1 deliverable. |
+| v2 specs (`docs/specs/*.md`) | All 10 constituent specs drafted (top-level + storage + work-states + coordination-hub + CLI + web-api + web-ui + dialogue + agent-roster + host-adapter + dep-graph). Three spec amendments shipped from implementation. |
+| `dwarven` Rust binary | **Shipped** (CLI + daemon + SQLite index + watcher). |
+| HTTP API + SSE | **Shipped.** Full web-api.md surface. |
+| Claude Code adapter | **Shipped.** `dwarven init --host claude-code` materializes 23 files into `.claude/`. |
+| Dep-graph scheduler (v2) | **Shipped.** Scheduler core, CLI, HTTP, web UI screen. |
+| Web UI | **Minimum viable shipped.** Inbox / Issues / Issue detail / Schedule / Daemon screens with SSE-driven real-time updates. Full mutation UI on detail screen + Dependencies graph view + Config screen are deferred. |
 | opencode adapter | v3. |
-| Dep-graph scheduler | v2. |
-| Inherited `agents/`, `skills/`, `commands/`, `hooks/` | Implements v0.1 (GH-coupled, CC-only). Flagged stale; will be replaced as v1 implementation lands. |
 
 ## Philosophy
 

@@ -19,7 +19,6 @@ The full v2 architecture is documented in `README.md` and decomposed across `doc
 | `.dwarven/` in this repo | Bootstrapped at `5d0ede4`; `next_issue_id = 1` (no real issues filed yet — all verification used scratch tempdirs). |
 | opencode adapter | v3 deliverable. The host-agnostic contract in `host-adapter.md#R2` is published. |
 | Dep-graph scheduler | **Shipped (v2).** `score(i) = base + α · Σ score(blocked)` topo-sort with cycle detection. CLI: `dwarven schedule next`, `dwarven issue priority-override`. HTTP: `GET /api/v1/scheduler/queue`, `POST /api/v1/scheduler/override`. Web UI: Schedule screen with override controls. Defaults from config.toml: `α=0.5`, weights `{p0=4, p1=2, p2=1, unset=1}`. |
-| Inherited `agents/`, `skills/`, `commands/`, `hooks/` | v0.1 surfaces, **stale**, retained as historical reference. The Claude Code adapter writes to `.claude/`; nothing in v2 reads from these inherited directories. Safe to delete; flagged with `STALE.md` markers in case any prose is still useful for future skill writes. |
 | Test coverage | **196 tests, all green** (18 unit + 178 integration across 17 test files). `cargo test` runs in ~6s. |
 
 ## The pivot (2026-05-09)
@@ -110,12 +109,6 @@ Cross-references use `<spec>.md#R<n>`. Top-level spec wins on conflicts.
 
 ## Working conventions
 
-### Don't refactor inherited v0.1 code
-
-`agents/`, `skills/`, `commands/`, and `hooks/` implement the v0.1 GH-coupled architecture. Do not refactor in place. The v1 implementation will materialize fresh agent definitions via the Claude Code adapter (`docs/specs/host-adapter.md#R3`). Any changes to inherited code now are wasted effort.
-
-If you must reference inherited content for context, treat it as historical.
-
 ### Patterns to use in agent system prompts (carried forward from v0.1)
 
 - **Red Flags tables** — "what you might be thinking vs. reality" anti-rationalization framing.
@@ -157,7 +150,6 @@ Describe the problem, not just the change. Branches are `feat/<id>-<slug>` and a
 - **Plans:** `docs/plans/` (currently empty; populated as implementation issues are planned).
 - **Architecture:** `docs/architecture/` (currently empty; populated as design decisions are made).
 - **Changelog:** `docs/CHANGELOG.md` — v2.0.0 onward.
-- **Inherited (stale):** `agents/`, `skills/`, `commands/`, `hooks/` — see "Don't refactor inherited v0.1 code" above.
 - **Maintainer scratchpad:** `prompts/todo.local.md` (gitignored); not authoritative.
 
 ## Pointers
