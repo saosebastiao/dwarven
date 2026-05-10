@@ -135,6 +135,10 @@ fn router(state: AppState) -> axum::Router {
             post(daemon_ops::scheduler_override),
         )
         .route("/api/v1/events", get(api_events::sse_handler))
+        .route("/", get(crate::api::web::index))
+        .route("/app.js", get(crate::api::web::app_js))
+        .route("/app.css", get(crate::api::web::app_css))
+        .fallback(crate::api::web::spa_fallback)
         .with_state(state)
 }
 

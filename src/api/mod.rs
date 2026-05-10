@@ -7,3 +7,4 @@ pub mod mutations;
 pub mod server;
 pub mod state;
 pub mod types;
+pub mod web;
