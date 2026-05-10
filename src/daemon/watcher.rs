@@ -9,6 +9,7 @@ use notify::{Event, EventKind as FsEventKind, RecommendedWatcher, RecursiveMode,
 
 use crate::api::events::{EventKind, EventTx, emit};
 use crate::index;
+use crate::index::IndexHealth;
 use crate::storage::config::RepoPaths;
 
 /// How long after an event burst we wait before reindexing. Coalesces
@@ -33,6 +34,31 @@ pub fn run(paths: &RepoPaths, term_flag: Arc<AtomicBool>, events: EventTx) -> Re
     let _watcher = watcher; // keep alive; drop on return tears it down
 
     let reconcile_interval = read_reconcile_interval(paths);
+
+    // Probe the existing index before we overwrite it (R7.3 + R7.4). The
+    // unconditional rebuild that follows is preserved per R3.3 step 5;
+    // the probe just makes the failure modes legible.
+    match index::probe_health(&paths.index_path()) {
+        Ok(IndexHealth::Missing) => {
+            eprintln!("[daemon] no existing index; building fresh");
+        }
+        Ok(IndexHealth::Ok) => {
+            eprintln!(
+                "[daemon] existing index passed integrity + version checks; rebuilding per R3.3 step 5"
+            );
+        }
+        Ok(IndexHealth::Corrupt(reason)) => {
+            eprintln!("[daemon] existing index corrupt ({reason}); rebuilding");
+        }
+        Ok(IndexHealth::VersionMismatch { found, expected }) => {
+            eprintln!(
+                "[daemon] existing index schema version mismatch (found={found}, expected={expected}); rebuilding"
+            );
+        }
+        Err(e) => {
+            eprintln!("[daemon] index health probe failed: {e:#}; rebuilding anyway");
+        }
+    }
 
     // Initial reindex (R3.3 step 5).
     let stats = index::rebuild(paths)?;
