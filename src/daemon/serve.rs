@@ -26,6 +26,12 @@ pub fn run(args: ServeArgs) -> Result<()> {
     // of single-instance-per-repo (R4.4). If the lock is held, another
     // daemon is alive — fail. If the file is stale (no live PID), we
     // reclaim it (R3.5).
+    // Validate the full config (R10.6) before any side effects. This
+    // surfaces malformed daemon.port / scheduler.alpha / etc. as a clean
+    // exit-1 instead of a runtime crash later in startup.
+    let _full_config = crate::daemon::config::read_full_config(&paths)
+        .map_err(|e| UserError(format!("config validation failed: {e:#}")))?;
+
     let pid_file = OpenOptions::new()
         .create(true)
         .read(true)
