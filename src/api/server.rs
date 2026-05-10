@@ -8,6 +8,8 @@ use axum::Json;
 use axum::extract::State;
 use axum::routing::{delete, get, post, put};
 
+use crate::api::config as api_config;
+use crate::api::daemon_ops;
 use crate::api::error::ApiError;
 use crate::api::issues;
 use crate::api::mutations;
@@ -27,7 +29,7 @@ pub fn spawn(
     bind: SocketAddr,
     term_flag: Arc<AtomicBool>,
 ) -> Result<std::thread::JoinHandle<()>> {
-    let app_state = AppState::new(paths.clone());
+    let app_state = AppState::new(paths.clone(), Arc::clone(&term_flag));
 
     let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<()>>();
 
@@ -118,6 +120,17 @@ fn router(state: AppState) -> axum::Router {
         .route(
             "/api/v1/dependencies/:from/:to",
             delete(mutations::remove_dep),
+        )
+        .route(
+            "/api/v1/config",
+            get(api_config::get_config).patch(api_config::patch_config),
+        )
+        .route("/api/v1/daemon/shutdown", post(daemon_ops::shutdown))
+        .route("/api/v1/daemon/reindex", post(daemon_ops::reindex))
+        .route("/api/v1/scheduler/queue", get(daemon_ops::scheduler_queue))
+        .route(
+            "/api/v1/scheduler/override",
+            post(daemon_ops::scheduler_override),
         )
         .with_state(state)
 }
