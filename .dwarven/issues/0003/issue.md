@@ -2,12 +2,12 @@
 id: 3
 title: 'SSE: Last-Event-ID-based replay on reconnect'
 type: feature
-state: pm
+state: done
 priority: p2
 epic: daemon-polish
 created: 2026-05-10T02:03:15Z
 created_by: maintainer
-updated: 2026-05-10T02:03:15Z
+updated: 2026-05-10T06:01:17Z
 ---
 web-api.md#R5.6 acknowledges this as a future extension: "The stream does not replay missed events in v1; on reconnect, the UI may need to refresh affected views. (A Last-Event-ID-based replay mechanism is a possible future extension.)"
 

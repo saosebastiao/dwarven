@@ -10,6 +10,13 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- SSE event stream now supports `Last-Event-ID`-based replay on
+  reconnect (`web-api.md#R5.6`). Each emitted event carries a
+  monotonic seq id; clients reconnecting with the header receive
+  any missed events from a 256-entry ring buffer before the live
+  stream attaches. If the requested id is older than the buffer's
+  oldest entry, the server emits a `stream.refresh-required`
+  event so the client refetches state. (#3)
 - Daemon now validates `.dwarven/config.toml` at startup per
   `coordination-hub.md#R10.6`. Out-of-range `daemon.port`, invalid
   `scheduler.alpha`, mis-ordered `scheduler.priority_weights`, and
