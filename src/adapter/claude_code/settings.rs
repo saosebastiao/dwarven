@@ -45,6 +45,7 @@ pub fn render() -> String {
                 "Bash(dwarven config set:*)",
                 "Bash(dwarven reindex:*)",
                 "Bash(dwarven issue priority:*)",
+                "Bash(dwarven issue priority-override:*)",
                 "Bash(dwarven issue transition * --override:*)"
             ]
         },

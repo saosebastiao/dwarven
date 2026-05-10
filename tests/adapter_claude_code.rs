@@ -85,6 +85,7 @@ fn adapter_settings_contains_universal_deny() {
         "Bash(dwarven init:*)",
         "Bash(dwarven config set:*)",
         "Bash(dwarven issue priority:*)",
+        "Bash(dwarven issue priority-override:*)",
     ];
     for pat in must_deny {
         assert!(

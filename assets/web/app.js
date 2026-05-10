@@ -74,6 +74,7 @@ async function render() {
     if (r.route === "inbox") return renderInbox();
     if (r.route === "issues") return renderIssues();
     if (r.route === "issue") return renderIssue(r.id);
+    if (r.route === "schedule") return renderSchedule();
     if (r.route === "daemon") return renderDaemon();
     app.innerHTML = `<div class="empty">Unknown route. <a href="#/inbox">Back to Inbox</a></div>`;
 }
@@ -266,6 +267,113 @@ async function renderIssue(id) {
     }
 }
 
+// ---------- Schedule screen (web-ui.md#R8) ----------
+
+let scheduleActionableOnly = false;
+
+async function renderSchedule() {
+    app.innerHTML = `<div class="empty">computing schedule…</div>`;
+    try {
+        const qs = scheduleActionableOnly ? "?actionable=true" : "";
+        const rows = await getJSON(`/scheduler/queue${qs}`);
+        if (rows.length === 0) {
+            app.innerHTML = `<h2>Schedule</h2>
+                <div class="toolbar">
+                    <label><input type="checkbox" id="actionable-toggle" ${scheduleActionableOnly ? "checked" : ""}> actionable only</label>
+                </div>
+                <div class="empty">No active issues.</div>`;
+            wireToggle();
+            return;
+        }
+        app.innerHTML = `
+            <h2>Schedule (${rows.length})</h2>
+            <p class="meta">Ranked by effective priority. Higher = work on this sooner. <code>score = base + α · Σ score(blocked)</code> per dep-graph.md#R3.2.</p>
+            <div class="toolbar">
+                <label><input type="checkbox" id="actionable-toggle" ${scheduleActionableOnly ? "checked" : ""}> actionable only</label>
+            </div>
+            <table>
+                <thead><tr>
+                    <th>RANK</th><th>ID</th><th>TITLE</th><th>STATE</th><th>TYPE</th>
+                    <th>PRI</th><th>SCORE</th><th>OVR</th><th>EFF</th><th></th>
+                </tr></thead>
+                <tbody>${rows
+                    .map((r, i) => {
+                        const row = `
+                    <tr class="row" data-id="${r.id}">
+                        <td>${i + 1}</td>
+                        <td>#${r.id}</td>
+                        <td>${escapeHtml(r.title)}${r.actionable ? "" : ` <span class="tag">blocked</span>`}${r.in_cycle ? ` <span class="tag">cycle</span>` : ""}</td>
+                        <td><span class="tag">${r.state}</span></td>
+                        <td><span class="tag">${r.type}</span></td>
+                        <td>${r.priority ? `<span class="tag priority-${r.priority}">${r.priority}</span>` : "-"}</td>
+                        <td>${r.score.toFixed(2)}</td>
+                        <td>${r.override == null ? "-" : `<span class="tag">${r.override}</span>`}</td>
+                        <td>${r.effective_priority.toFixed(2)}</td>
+                        <td>
+                            <button data-act="set-override" data-id="${r.id}" data-current="${r.override == null ? "" : r.override}">override</button>
+                            ${r.override == null ? "" : `<button data-act="clear-override" data-id="${r.id}">clear</button>`}
+                        </td>
+                    </tr>`;
+                        return row;
+                    })
+                    .join("")}</tbody>
+            </table>`;
+        wireToggle();
+        wireRowClicks();
+        wireOverrideButtons();
+    } catch (e) {
+        app.innerHTML = `<div class="empty">load failed: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+function wireToggle() {
+    const toggle = document.getElementById("actionable-toggle");
+    if (toggle) {
+        toggle.onchange = () => {
+            scheduleActionableOnly = toggle.checked;
+            renderSchedule();
+        };
+    }
+}
+
+function wireOverrideButtons() {
+    document.querySelectorAll("[data-act='set-override']").forEach((btn) => {
+        btn.onclick = async (ev) => {
+            ev.stopPropagation();
+            const id = Number(btn.dataset.id);
+            const current = btn.dataset.current;
+            const v = prompt(
+                `Set effective-priority override for issue #${id}.\nHigher value ranks higher. Leave blank to cancel.`,
+                current,
+            );
+            if (v == null || v.trim() === "") return;
+            const num = Number(v);
+            if (!Number.isFinite(num)) {
+                alert("Override must be a finite number.");
+                return;
+            }
+            try {
+                await postJSON("/scheduler/override", { issue: id, value: num });
+                renderSchedule();
+            } catch (e) {
+                alert("override failed: " + e.message);
+            }
+        };
+    });
+    document.querySelectorAll("[data-act='clear-override']").forEach((btn) => {
+        btn.onclick = async (ev) => {
+            ev.stopPropagation();
+            const id = Number(btn.dataset.id);
+            try {
+                await postJSON("/scheduler/override", { issue: id, clear: true });
+                renderSchedule();
+            } catch (e) {
+                alert("clear failed: " + e.message);
+            }
+        };
+    });
+}
+
 // ---------- Daemon screen ----------
 
 async function renderDaemon() {
@@ -323,6 +431,7 @@ function connectSSE() {
         if (r.route === "inbox") renderInbox();
         else if (r.route === "issues") renderIssues();
         else if (r.route === "issue") renderIssue(r.id);
+        else if (r.route === "schedule") renderSchedule();
         else if (r.route === "daemon") renderDaemon();
     };
     ["issue.created", "issue.changed", "issue.closed", "comment.added",

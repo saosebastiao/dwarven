@@ -246,6 +246,7 @@ R13.3 — **Hub administrative operations.**
 - `dwarven config set:*`
 - `dwarven reindex`
 - `dwarven issue priority` (maintainer-only — `dwarven-cli.md#R6.9`)
+- `dwarven issue priority-override` (maintainer-only — `dep-graph.md#R4`)
 - `dwarven issue transition * --override` (maintainer-only — `dwarven-cli.md#R6.5.3`)
 
 R13.4 — **Direct push to `main`** is restricted to: Spec (R3), Architect (R4), Planning (R7), Code Review (R10, only as part of merge), and Doc (R11). All other agents must commit only to `feat/*` branches.

@@ -69,6 +69,9 @@ case "$cmd" in
     *"dwarven config set"*)
         deny "blocked by R13.3: maintainer-only config mutation"
         ;;
+    *"dwarven issue priority-override"*)
+        deny "blocked by R13.3: priority-override is maintainer-only (dep-graph.md#R4)"
+        ;;
     *"dwarven issue priority"*)
         deny "blocked by R13.3: priority is maintainer-only (dwarven-cli.md#R6.9)"
         ;;

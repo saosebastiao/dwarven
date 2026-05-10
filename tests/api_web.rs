@@ -84,6 +84,8 @@ fn root_serves_index_html_with_correct_content_type() {
     let body = resp.into_string().unwrap();
     assert!(body.contains("<title>Dwarven</title>"));
     assert!(body.contains("<script src=\"/app.js\">"));
+    // Slice 22: nav has the Schedule link.
+    assert!(body.contains("data-route=\"schedule\""));
 }
 
 #[test]
@@ -99,6 +101,9 @@ fn app_js_is_served() {
     let body = resp.into_string().unwrap();
     assert!(body.contains("EventSource"));
     assert!(body.contains("connectSSE"));
+    // Slice 22: schedule renderer is bundled.
+    assert!(body.contains("renderSchedule"));
+    assert!(body.contains("scheduler/queue"));
 }
 
 #[test]
