@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::process::{Child, Stdio};
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::{Duration, Instant};
 
 use assert_cmd::cargo::CommandCargoExt;
@@ -13,12 +14,27 @@ const READY_TIMEOUT: Duration = Duration::from_secs(5);
 const INDEX_TIMEOUT: Duration = Duration::from_secs(10);
 const POLL: Duration = Duration::from_millis(50);
 
+static NEXT_PORT: AtomicU16 = AtomicU16::new(19000);
+
+fn allocate_port() -> u16 {
+    NEXT_PORT.fetch_add(1, Ordering::Relaxed)
+}
+
+fn set_port(repo: &Path, port: u16) {
+    dwarven(repo)
+        .args(["config", "set", "daemon.port", &port.to_string()])
+        .assert()
+        .success();
+}
+
 struct DaemonGuard {
     child: Child,
 }
 
 impl DaemonGuard {
     fn spawn(repo: &Path) -> Self {
+        let port = allocate_port();
+        set_port(repo, port);
         let mut cmd = std::process::Command::cargo_bin("dwarven").unwrap();
         cmd.arg("--repo")
             .arg(repo)

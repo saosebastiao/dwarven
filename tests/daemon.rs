@@ -1,5 +1,6 @@
 use std::path::Path;
 use std::process::{Child, Stdio};
+use std::sync::atomic::{AtomicU16, Ordering};
 use std::time::{Duration, Instant};
 
 use assert_cmd::cargo::CommandCargoExt;
@@ -12,6 +13,21 @@ use common::{dwarven, fresh_repo};
 const READY_TIMEOUT: Duration = Duration::from_secs(5);
 const POLL: Duration = Duration::from_millis(50);
 
+// Each test reserves its own port; the daemon binds HTTP, so the default
+// 7777 would collide under parallel execution.
+static NEXT_PORT: AtomicU16 = AtomicU16::new(18000);
+
+fn allocate_port() -> u16 {
+    NEXT_PORT.fetch_add(1, Ordering::Relaxed)
+}
+
+fn set_port(repo: &Path, port: u16) {
+    dwarven(repo)
+        .args(["config", "set", "daemon.port", &port.to_string()])
+        .assert()
+        .success();
+}
+
 /// Spawn `dwarven --repo <path> serve` in the background. The returned guard
 /// kills the child on drop so tests don't leak daemons on panic.
 struct DaemonGuard {
@@ -20,6 +36,10 @@ struct DaemonGuard {
 
 impl DaemonGuard {
     fn spawn(repo: &Path) -> Self {
+        // Allocate a unique port and configure it before spawning so we
+        // don't collide with concurrent tests.
+        let port = allocate_port();
+        set_port(repo, port);
         let mut cmd = std::process::Command::cargo_bin("dwarven").unwrap();
         cmd.arg("--repo")
             .arg(repo)
@@ -111,6 +131,8 @@ fn second_daemon_rejected_while_first_alive() {
     let _guard = DaemonGuard::spawn(tmp.path());
     wait_until_pidfile_exists(tmp.path());
 
+    // The second `dwarven serve` against the same repo should be rejected
+    // by the PID lock before it ever tries to bind HTTP.
     dwarven(tmp.path())
         .args(["serve"])
         .assert()

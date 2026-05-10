@@ -60,16 +60,27 @@ pub fn run(args: ServeArgs) -> Result<()> {
     // We hold the lock. Write our PID, truncating any stale content (R3.5).
     write_pid(&pid_file, std::process::id() as i32)?;
 
+    let port = read_port(&paths).unwrap_or(7777);
+    let bind: std::net::SocketAddr = format!("127.0.0.1:{port}").parse()?;
+
+    // Spawn the HTTP server first so a bind failure (e.g., port in use)
+    // surfaces before we publish anything else. The HTTP thread terminates
+    // when term_flag flips.
+    let http_handle = crate::api::server::spawn(paths.clone(), bind, Arc::clone(&term_flag))
+        .with_context(|| "starting HTTP server")?;
+
     if !args.quiet {
-        let port = read_port(&paths).unwrap_or(7777);
         println!("dwarven daemon started (PID {})", std::process::id());
-        println!("http://127.0.0.1:{port} (HTTP server not yet implemented)");
+        println!("http://127.0.0.1:{port}");
         println!("press Ctrl-C or send SIGTERM to stop");
     }
 
-    // Run the file watcher + reindex loop. Returns once term_flag is set
-    // (signal received).
+    // Run the file watcher + reindex loop on this thread. Returns once
+    // term_flag is set (signal received).
     crate::daemon::watcher::run(&paths, Arc::clone(&term_flag))?;
+
+    // Wait for the HTTP server thread to drain.
+    let _ = http_handle.join();
 
     if !args.quiet {
         println!("dwarven daemon stopping...");

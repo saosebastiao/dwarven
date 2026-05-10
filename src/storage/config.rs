@@ -7,6 +7,7 @@ use toml_edit::{DocumentMut, value};
 
 use super::atomic::write_atomic;
 
+#[derive(Clone)]
 pub struct RepoPaths {
     pub root: PathBuf,
 }
