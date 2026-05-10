@@ -2,7 +2,7 @@
 
 ## What this is
 
-Dwarven is a **host-agnostic system for specification-driven development** with **strongly decoupled agents** and a **local coordination hub**. The project is mid-pivot (announced 2026-05-09): the v2 architecture replaces the inherited v0.1 design (Claude-Code-only, GitHub-coupled). v2 specifications are drafted; CLI implementation is in progress (R6.1–R6.11 + R6.15 shipped; daemon/HTTP/web UI not started).
+Dwarven is a **host-agnostic system for specification-driven development** with **strongly decoupled agents** and a **local coordination hub**. The project is mid-pivot (announced 2026-05-09): the v2 architecture replaces the inherited v0.1 design (Claude-Code-only, GitHub-coupled). v2 specifications are drafted; **the v1 implementation is feature-complete** at the CLI surface, daemon, HTTP API, SSE event stream, Claude Code adapter, and a minimum-viable web UI.
 
 The full v2 architecture is documented in `README.md` and decomposed across `docs/specs/*.md` (top-level + 9 constituent specs). This file is the load-bearing in-session reference: design decisions with rationale, working conventions, what's stale vs. settled, and pointers.
 
@@ -10,14 +10,17 @@ The full v2 architecture is documented in `README.md` and decomposed across `doc
 
 | Area | Status |
 |---|---|
-| v2 architecture | **Specs drafted, not yet locked.** Source of truth: `docs/specs/dwarven.md` plus 9 constituent specs listed in its frontmatter. Two amendments piggybacked on implementation: `storage-model.md#R4.4.4` (creation-comment `from: created` sentinel), `work-states.md#R6.2.4` + `dwarven-cli.md#R6.7.3` (universal `done` reachability via close). |
-| `dwarven` Rust binary | All daemon-free CLI subcommands shipped: `init` (R6.1), `issue {create,view,list,transition,comment,close,blocker {set,clear},priority,edit,dep {add,remove}}` (R6.2–R6.11), `config {get,set}` (R6.15). 106 tests, `cargo test` green. Source under `src/`; integration tests under `tests/`. |
-| `.dwarven/` in this repo | Bootstrapped at `5d0ede4`; `next_issue_id = 1` (no real issues filed yet — verification used scratch tempdirs). |
-| Daemon, HTTP API, web UI | Not started. R6.12 (`serve`), R6.13 (`daemon stop/status/restart`), R6.14 (`reindex`) all blocked on this. Spec: `coordination-hub.md`, `web-api.md`, `web-ui.md`. |
-| Claude Code adapter | Not started. v1 deliverable. Will materialize agents to `.claude/agents/`, slash commands to `.claude/commands/`, hooks to `.claude/hooks/`, settings to `.claude/settings.json`. Spec: `host-adapter.md`. |
-| opencode adapter | v3 deliverable. |
-| Dep-graph scheduler | v2 deliverable. Cycle detection for the live `blocks` graph already lands with `dwarven issue dep add` (slice 9); the scheduler's effective-priority computation is later work. |
-| Inherited `agents/`, `skills/`, `commands/`, `hooks/` | Implement v0.1 (GH-coupled, CC-only). **Stale**. Do not refactor; they will be replaced wholesale by the Claude Code adapter. Flagged with `STALE.md` markers. |
+| v2 architecture | **Specs drafted; two amendments shipped from implementation.** Source of truth: `docs/specs/dwarven.md` plus 9 constituent specs. Amendments: `storage-model.md#R4.4.4` (creation-comment `from: created` sentinel), `work-states.md#R6.2.4` + `dwarven-cli.md#R6.7.3` (universal `done` reachability via close). |
+| `dwarven` CLI | **Shipped.** `init` (R6.1, `--host claude-code` materializes the adapter), `issue {create,view,list,transition,comment,close,blocker {set,clear},priority,edit,dep {add,remove}}` (R6.2–R6.11), `serve` + `daemon {status,stop,restart}` (R6.12–R6.13), `reindex` (R6.14), `config {get,set}` (R6.15). |
+| Daemon | **Shipped.** PID-locked single-instance per repo, signal handling, file watcher with debounced reindex, periodic reconciliation. SQLite index byte-reproducible from files (storage-model.md#R8). |
+| HTTP API | **Shipped.** Full web-api.md surface: issues / comments / transitions / blocker / priority / dependencies / daemon / config endpoints + SSE event stream at `/api/v1/events`. |
+| Claude Code adapter | **Shipped.** `dwarven init --host claude-code` materializes 23 files: 10 agents (`.claude/agents/<name>.md`), 10 slash commands, `settings.json` (allowlist + R13 deny + hooks block), session-start + pre-tool-use hooks. Per-agent `--actor` baked into allowlist patterns. Substantive Red-Flag-style framing intentionally not synthesized — those need eval evidence per "Skills are behavior-shaping code" below. |
+| Web UI | **Minimum viable shipped.** Vanilla-JS SPA embedded in the binary at compile time (assets/web/). Inbox + Issues list + Issue detail + Daemon screens. Real-time updates via SSE. Deferred to subsequent slices: full mutation UI from detail screen (transition picker / blocker / priority dropdowns / edit / dep add-remove), Dependencies graph (R7), Config screen (R10), URL-state filter persistence (R5.4). |
+| `.dwarven/` in this repo | Bootstrapped at `5d0ede4`; `next_issue_id = 1` (no real issues filed yet — all verification used scratch tempdirs). |
+| opencode adapter | v3 deliverable. The host-agnostic contract in `host-adapter.md#R2` is published. |
+| Dep-graph scheduler | v2 deliverable. Cycle detection for the live `blocks` graph already lands with `dwarven issue dep add`; the scheduler's effective-priority computation is later work (`dep-graph.md`, `web-api.md#R4.9` stubs). |
+| Inherited `agents/`, `skills/`, `commands/`, `hooks/` | v0.1 surfaces, **stale**, retained as historical reference. The Claude Code adapter writes to `.claude/`; nothing in v2 reads from these inherited directories. Safe to delete; flagged with `STALE.md` markers in case any prose is still useful for future skill writes. |
+| Test coverage | **168 tests, all green** (8 unit + 160 integration across 14 test files). `cargo test` runs in ~5s. |
 
 ## The pivot (2026-05-09)
 
