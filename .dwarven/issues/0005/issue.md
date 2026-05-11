@@ -2,14 +2,14 @@
 id: 5
 title: Implement opencode adapter (v3)
 type: feature
-state: pm
+state: done
 priority: p2
 blocked_by:
 - 4
 epic: opencode-adapter
 created: 2026-05-10T02:03:36Z
 created_by: maintainer
-updated: 2026-05-10T02:03:36Z
+updated: 2026-05-11T04:59:47Z
 ---
 v3 deliverable per host-adapter.md#R4. Mirror the Claude Code adapter (slice 18, src/adapter/claude_code/) for opencode's primitives. Specifics resolve under issue #4 (the spec gap).
 

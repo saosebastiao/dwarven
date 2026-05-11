@@ -10,6 +10,18 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- opencode adapter: `dwarven init --host opencode` materializes
+  the full `.opencode/` + root-level surface per
+  `host-adapter.md#R4`. 13 files: `opencode.json` at repo root
+  with the R13 universal-deny floor and `instructions` ref;
+  `.opencode/AGENTS.md` orientation copy (auto-loaded at session
+  start); `.opencode/agents/<name>.md` × 10 with `mode: subagent`
+  and per-agent `permission` blocks; `.opencode/agents/build.md`
+  for the maintainer primary. Materialize-time validation rejects
+  any per-agent allow pattern that would shadow a global deny
+  (opencode has no PreToolUse hook as a runtime second line).
+  Coexists with the Claude Code adapter — both can be installed
+  in the same repository. (#4, #5)
 - Agent prompt eval framework + runner per
   `docs/architecture/agent-eval.md`. `cargo run --example
   eval-runner` consumes YAML scenarios under `evals/<agent>/`,
