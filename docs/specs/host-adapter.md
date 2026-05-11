@@ -146,24 +146,216 @@ R3.8.3 — Triggering events are provided by the hub's SSE stream (`web-api.md#R
 
 ---
 
-## R4 — opencode adapter (v3 sketch)
+## R4 — opencode adapter (v3)
 
-The opencode adapter is a v3 deliverable. This section sketches the contract; the full spec is written in v3.
+The opencode adapter is a v3 deliverable. opencode is an open-source AI coding-agent CLI with primary/subagent isolation, per-agent permission gating, and configuration via markdown agent files plus `opencode.json` (`https://opencode.ai/docs/`).
 
-R4.1 — opencode is an open-source AI coding-agent CLI with its own primitives (subagents, commands, hooks, MCP). The adapter must map Dwarven's abstract contract (R2) onto opencode's specifics.
+The posture is **best-effort with documented gaps** per `dwarven.md#R3.4` working convention: where opencode has a clean primitive we use it; where it lacks one we document the gap and compensate via prompt-level discipline or process tooling, or declare the affected agent unsupported.
 
-R4.2 — Open questions to resolve in v3:
+This section specs the adapter contract concretely. Implementation lives under issue #5 in the project tracker.
 
-- Does opencode expose subagent isolation equivalent to Claude Code's `Agent` primitive? (If not, the adapter must approximate it via process boundaries.)
-- Does opencode support per-tool allowlists with prefix-matched patterns? (Required for the granular `Bash(dwarven --actor <name> ...)` approach in R2.6.)
-- Does opencode have an interactive question primitive analogous to `AskUserQuestion`? (Required for dialogue agents.)
-- Does opencode support hooks (SessionStart, PreToolUse equivalents)? (Required for orientation and universal constraint enforcement.)
+### R4.1 — Agent materialization
 
-R4.3 — If any of R4.2's open questions resolves negatively, the adapter must document the gap and either compensate (e.g., via prompt-level discipline) or declare the affected agent unsupported under the opencode adapter.
+R4.1.1 — Each abstract agent in `agent-roster.md` is materialized as an opencode subagent file at `.opencode/agents/<name>.md` with frontmatter: `description`, `mode: subagent`, `model` (per-agent override or inheritance), and `permission` (per-tool gating, R4.6).
 
-R4.4 — opencode adapter materialization output lives at `.opencode/<adapter-files>` (exact paths TBD per opencode's conventions).
+R4.1.2 — Subagent files mirror Claude Code's contract one-to-one: same prompt body content, same scope fences, same exit conditions. The two adapters share no on-disk artifacts (R4.10), but the rendered prose for each agent is byte-identical between adapters modulo host-specific frontmatter.
 
-R4.5 — The two adapters share no on-disk artifacts. A repository may install both adapters simultaneously; each writes to its own host-specific directory; the maintainer chooses which host to launch.
+R4.1.3 — Subagent isolation is provided natively by opencode: each invocation runs in a separate child session with its own context, prompt, and permissions. The parent does not inherit the subagent's context, satisfying `R2.2.4`.
+
+R4.1.4 — Subagents are invocable two ways:
+- Programmatic dispatch from a primary agent via opencode's `Task` tool (`@<name>` mention or `Task(<name>, prompt)`).
+- Direct user invocation via the `@<name>` mention in chat.
+
+Slash commands (R4.2) are the primary maintainer-facing dispatch surface; `Task` is the agent-to-agent dispatch surface where authorized (R4.6, mirroring `R13.5`).
+
+### R4.2 — Slash command registration
+
+R4.2.1 — opencode does not have a Claude-Code-equivalent project-level slash-command primitive at the time of this writing. The adapter substitutes the `@<name>` mention pattern: each entry-point dispatch is documented in the project's `AGENTS.md` (R4.5) as "type `@<agent> <topic>` to dispatch the agent."
+
+R4.2.2 — If opencode adds a native slash-command primitive in a future release, the adapter SHOULD migrate to it (one-keystroke dispatch per `R2.3`) and the spec is amended accordingly.
+
+R4.2.3 — Custom shell aliases or scripts that wrap `opencode run --agent <name> "<topic>"` are acceptable maintainer-side ergonomics; they are not part of the materialized adapter output.
+
+### R4.3 — Maintainer shell configuration
+
+R4.3.1 — The maintainer's primary agent (the top-level opencode session) uses the `Build` built-in agent or a project-specific primary defined at `.opencode/agents/build.md`. Its `permission` block declares the maintainer-shell allowlist analogous to `R3.3.1`:
+
+```yaml
+permission:
+  read: allow
+  edit: deny
+  write: deny
+  bash:
+    "git status*": allow
+    "git diff*": allow
+    "git log*": allow
+    "git show*": allow
+    "git branch*": allow
+    "git rev-parse*": allow
+    "git merge-base*": allow
+    "dwarven --actor maintainer issue view*": allow
+    "dwarven --actor maintainer issue list*": allow
+    "dwarven --actor maintainer daemon status*": allow
+    "dwarven --actor maintainer config get*": allow
+    "*": deny
+  task:
+    "*": allow
+  question: allow
+```
+
+R4.3.2 — The shell's allowlist excludes any mutating bash pattern, any `edit`/`write` permission, and any `dwarven` pattern that mutates hub state (mutations route through dispatched agents — `R2.4.2`). The `task` permission with `*: allow` lets the shell dispatch any subagent; per-agent permissions (R4.6) constrain what each subagent can do.
+
+### R4.4 — Interactive question primitive
+
+R4.4.1 — opencode exposes a `question` permission key gating a question-asking primitive. The adapter includes `question: allow` in dialogue agents' permission blocks (`agent-roster.md#R2.2`) and `question: deny` in discrete-work agents' (`R2.3`).
+
+R4.4.2 — opencode's question primitive is currently chat-based (free-text) rather than structured-options like Claude Code's `AskUserQuestion`. The dialogue protocol's "one question + 2-3 alternatives + your lean" framing (`dialogue.md#R3.2`) is achieved via prompt content: the dialogue agents render their question and alternatives as Markdown in the response body. The maintainer answers in free text.
+
+R4.4.3 — Detached dispatch suppression of the question primitive (`R2.5.2`) is implemented by overriding `question: deny` in the runtime permission for the detached invocation (R4.8). Mechanism: the detached-dispatch wrapper writes a per-session permission override before invoking the agent.
+
+### R4.5 — Session orientation
+
+R4.5.1 — opencode does not have a SessionStart hook (the config docs explicitly list no hooks system). The adapter substitutes opencode's `AGENTS.md` mechanism: orientation copy is materialized at `AGENTS.md` in the repo root (or `.opencode/AGENTS.md` if the maintainer prefers a tooling-scoped location), which opencode auto-loads into the model's context at session start.
+
+R4.5.2 — Orientation copy covers the same surface as the Claude Code SessionStart hook (`R3.6.1`): the hub workflow primer, the agent dispatch catalog (`@<name>` instead of `/<name>`), web UI URL, and daemon-status guidance. The daemon-status check at session start is NOT automatic under opencode — the orientation copy includes "run `dwarven daemon status` to check the hub" as a manual step.
+
+R4.5.3 — The trade-off is that opencode's orientation is content-only, not behavioral. Claude Code can run `dwarven daemon status` automatically and inject the result; opencode cannot. The maintainer who wants the daemon-status-injection ergonomics picks Claude Code.
+
+### R4.6 — Actor attribution
+
+R4.6.1 — Each agent's bash permission patterns carry the agent's name as a literal in the `--actor` position. Example for the Spec agent's `.opencode/agents/spec.md`:
+
+```yaml
+permission:
+  bash:
+    "dwarven --actor spec issue view*": allow
+    "dwarven --actor spec issue list*": allow
+    "dwarven --actor spec issue comment*": allow
+    "dwarven --actor spec issue close*": allow
+    "git status*": allow
+    "git diff*": allow
+    "git log*": allow
+    "git add*": allow
+    "git commit*": allow
+    "git push origin main*": allow
+    "*": deny
+```
+
+R4.6.2 — opencode's pattern syntax is simpler than Claude Code's: `*` matches any string, `?` matches one character, literal otherwise. The semantics are equivalent for our prefix-pattern use case. The trailing `"*": deny` is mandatory in every agent's bash permission block — without it, opencode's default-permissive behavior would allow unlisted commands.
+
+R4.6.3 — Agent attribution is structural at the allowlist boundary (parallel to `R2.6.2` for Claude Code). The agent cannot invoke `dwarven` without `--actor <agent-name>` because no other pattern is allowed; the agent cannot impersonate another agent because the patterns embed its own name.
+
+### R4.7 — Per-agent permission examples
+
+R4.7.1 — A full agent file under opencode looks like:
+
+```markdown
+---
+description: Edit docs/specs/*.md and the changelog in dialogue with the maintainer.
+mode: subagent
+model: inherit
+permission:
+  read: allow
+  edit:
+    "docs/specs/**": allow
+    "docs/CHANGELOG.md": allow
+    "*": deny
+  write:
+    "docs/specs/**": allow
+    "docs/CHANGELOG.md": allow
+    "*": deny
+  task: deny
+  question: allow
+  bash:
+    "git status*": allow
+    "git diff*": allow
+    "git log*": allow
+    "git add*": allow
+    "git commit*": allow
+    "git push origin main*": allow
+    "dwarven --actor spec issue view*": allow
+    "dwarven --actor spec issue list*": allow
+    "dwarven --actor spec issue comment*": allow
+    "dwarven --actor spec issue close*": allow
+    "*": deny
+---
+
+# spec agent
+
+[body identical to the Claude Code adapter's spec.md, minus the
+`tools:` frontmatter which lives in the permission block above]
+```
+
+R4.7.2 — opencode's `edit` and `write` permissions support glob patterns (`docs/specs/**`). This is finer-grained than Claude Code's per-tool-name allowlist; under opencode the scope-fence paths are mechanism-enforced rather than prompt-level discipline. This is a *strict improvement* over the Claude Code adapter for path-scoped agents (Spec, Architect, Planning, Test Dev, Implementation, Doc).
+
+### R4.8 — Universal constraint enforcement
+
+R4.8.1 — `agent-roster.md#R13` ("never list") is enforced via the global `permission` block in `opencode.json` at the project root, materialized by the adapter:
+
+```json
+{
+  "permission": {
+    "bash": {
+      "git push --force*": "deny",
+      "git push --force-with-lease*": "deny",
+      "git push -f*": "deny",
+      "git reset --hard*": "deny",
+      "git checkout -- .*": "deny",
+      "git restore .*": "deny",
+      "git clean -f*": "deny",
+      "rm -rf*": "deny",
+      "rm -f*": "deny",
+      "dwarven serve*": "deny",
+      "dwarven daemon*": "deny",
+      "dwarven init*": "deny",
+      "dwarven reindex*": "deny",
+      "dwarven config set*": "deny",
+      "dwarven issue priority*": "deny",
+      "dwarven issue priority-override*": "deny",
+      "dwarven issue transition * --override*": "deny"
+    }
+  }
+}
+```
+
+R4.8.2 — opencode's permission semantics are "last match wins" merged with agent-specific overrides taking precedence. The `agent-roster.md#R13` deny patterns at global scope are the floor; per-agent allow patterns are subject to the deny floor in opencode's resolution. Net effect: an agent's allowlist cannot weaken the universal deny set.
+
+R4.8.3 — **Gap**: Claude Code's adapter uses a `PreToolUse` hook (`R3.7.1`) as a second line of defense beyond permission lists. opencode has no hooks system. The adapter has only one layer of enforcement (the permission block). If a per-agent permission file is misconfigured to allow a universally-forbidden pattern, opencode's "last match wins" semantics may favor the agent rule over the global deny depending on rule ordering. The maintainer mitigation: validate materialized `.opencode/agents/*.md` against the R13 deny list at `dwarven init --host opencode` time (the adapter must check that no agent file shadows a global deny).
+
+R4.8.4 — `agent-roster.md#R13.5` ("Agent tool restricted to maintainer / Spec / Architect"): enforced via per-agent `permission.task` settings. Spec and Architect get `task: allow` (or specific subagent allowlist); every other agent gets `task: deny`. The maintainer's primary agent (R4.3) is `task: "*": allow`.
+
+### R4.9 — Detached dispatch (v1.1+ under opencode = v3+)
+
+R4.9.1 — opencode's CLI supports `opencode run --agent <name> "<prompt>"` for non-interactive invocation. The detached-dispatch wrapper uses this against a per-event prompt template.
+
+R4.9.2 — The wrapper writes a per-session permission override (R4.4.3) before invoking, stripping `question` from the runtime permission so detached-dispatched agents cannot block on a user response (`R2.5.2`).
+
+R4.9.3 — Triggering events come from the hub's SSE stream (`web-api.md#R5`); the wrapper subscribes and dispatches matching events into `opencode run`. Same pattern as the Claude Code adapter (`R3.8.3`).
+
+### R4.10 — Coexistence with the Claude Code adapter
+
+R4.10.1 — The two adapters share no on-disk artifacts. Claude Code writes to `.claude/`; opencode writes to `.opencode/`. A repository may install both adapters simultaneously (`dwarven init --host claude-code --host opencode`); each writes to its own host-specific directory; the maintainer chooses which host to launch.
+
+R4.10.2 — Per-agent content (the prompt body) is rendered from one source of truth in `src/adapter/<host>/agents.rs`. Both adapters share the same agent contracts from `agent-roster.md` and produce byte-identical prompt bodies modulo host-specific frontmatter.
+
+### R4.11 — Supported agents under opencode
+
+R4.11.1 — All ten agents in `agent-roster.md` are supported under opencode with the following caveats:
+
+| Agent | Status | Notes |
+|---|---|---|
+| Spec | Supported | `question` is free-text, not structured options (R4.4.2). |
+| Architect | Supported | Same caveat as Spec. |
+| Gap | Supported | Same caveat as Spec; detached path uses R4.9. |
+| PM | Supported | Same caveat as Spec; detached path uses R4.9. |
+| Planning | Supported | Same caveat as Spec; detached path uses R4.9. |
+| Test Dev | Supported | Discrete-work agent; no question primitive needed. |
+| Implementation | Supported | Discrete-work agent; same as Test Dev. |
+| Code Review | Supported | Discrete-work agent; same as Test Dev. |
+| Doc | Supported | Discrete-work agent; same as Test Dev. |
+| Triage | Supported | Discrete-work agent; scheduled detached via R4.9. |
+
+R4.11.2 — The single substantive degradation under opencode vs Claude Code is the dialogue agents' question-asking ergonomics: free-text instead of structured options. The maintainer who prefers the structured-options affordance picks Claude Code.
 
 ---
 
