@@ -10,6 +10,14 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- `docs/architecture/testing.md`: test surface and harness patterns
+  for contributors. Layout (unit vs integration vs evals), the
+  `common` harness (dwarven() builder, fresh_repo, DWARVEN_ACTOR
+  scrub), determinism rules (byte-reproducible reindex, atomic
+  writes, frontmatter ordering), daemon test patterns (atomic port
+  allocation, ready-polling, pidfile-absence cleanup), no-mock
+  rationale for SQLite/file IO/Anthropic API, and a where-to-put-a-new-test
+  table. (#20)
 - `docs/architecture/host-adapter.md`: implementation of the
   host-adapter spec. Documents the registry (AgentDef + ROSTER as
   const code with rationale), bash-pattern conventions including
