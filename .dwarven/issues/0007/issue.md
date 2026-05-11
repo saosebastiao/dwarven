@@ -2,14 +2,14 @@
 id: 7
 title: Eval framework for agent prompts
 type: arch
-state: architect
+state: done
 priority: p2
 blocks:
 - 6
 epic: agent-prompt-content
 created: 2026-05-10T02:04:01Z
 created_by: maintainer
-updated: 2026-05-10T02:04:06Z
+updated: 2026-05-11T04:04:08Z
 ---
 Per CLAUDE.md the Red Flags tables and anti-rationalization framing in agent prompts "need eval evidence" before they land. Today there is no eval framework — substantive prompt changes would either ship blind or be tested informally.
 
