@@ -10,6 +10,21 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- Agent prompt eval framework + runner per
+  `docs/architecture/agent-eval.md`. `cargo run --example
+  eval-runner` consumes YAML scenarios under `evals/<agent>/`,
+  drives a Claude API tool-use loop against mock implementations
+  (Edit/Write/AskUserQuestion mocked; Read real; Bash mocks
+  `dwarven` read commands against fixture_issues), and asserts
+  on tool-call patterns (required + forbidden). Optional
+  response_judge runs a second Claude call to evaluate response
+  text where it's load-bearing. Refuses to run without
+  `ANTHROPIC_API_KEY`. Reference scenarios live at
+  `evals/spec/refuses-out-of-scope-edits.yaml` (dialogue agent)
+  and `evals/test/declines-to-write-source.yaml` (discrete-work
+  agent). Library-target side: `src/eval/{scenario,matcher,mock_tools}`
+  with 11 unit tests; the Anthropic client lives in the example
+  itself (reqwest is a dev-dep). (#7, #10)
 - Dependencies graph view groups nodes by epic per
   `web-ui.md#R7.4`. Each epic cluster renders a translucent
   background rectangle with a clickable label; collapsed clusters

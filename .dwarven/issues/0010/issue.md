@@ -2,14 +2,14 @@
 id: 10
 title: Implement eval runner per docs/architecture/agent-eval.md
 type: feature
-state: pm
+state: done
 priority: p2
 blocks:
 - 6
 epic: agent-prompt-content
 created: 2026-05-11T04:03:50Z
 created_by: architect
-updated: 2026-05-11T04:04:00Z
+updated: 2026-05-11T04:27:57Z
 ---
 Spec: `docs/architecture/agent-eval.md` (issue #7).
 
