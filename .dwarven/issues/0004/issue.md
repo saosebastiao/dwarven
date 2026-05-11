@@ -2,14 +2,14 @@
 id: 4
 title: Spec the opencode adapter (host-adapter.md#R4 sketch → full)
 type: spec-gap
-state: pm
+state: done
 priority: p2
 blocks:
 - 5
 epic: opencode-adapter
 created: 2026-05-10T02:03:27Z
 created_by: maintainer
-updated: 2026-05-10T02:03:36Z
+updated: 2026-05-11T04:47:11Z
 ---
 host-adapter.md#R4 currently sketches the opencode adapter contract and lists open questions in R4.2:
 
