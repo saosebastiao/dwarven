@@ -566,6 +566,10 @@ async function renderDeps(params) {
         const includeTerminal = params.get("all") === "true";
         const focusId = params.get("focus") ? Number(params.get("focus")) : null;
         const hops = params.get("hops") ? Math.max(1, Number(params.get("hops"))) : 1;
+        const collapsedCsv = params.get("collapsed") || "";
+        const collapsed = new Set(
+            collapsedCsv.split(",").map((s) => s.trim()).filter(Boolean),
+        );
 
         const issues = await getJSON("/issues?all=true");
         let nodes = includeTerminal
@@ -580,33 +584,44 @@ async function renderDeps(params) {
             edges = edges.filter((e) => subset.has(e.from) && subset.has(e.to));
         }
 
-        if (nodes.length === 0) {
+        // Apply collapse (issue #9): replace each collapsed-epic's members
+        // with a single placeholder node and rewire edges.
+        const collapsedResult = collapseClusters(nodes, edges, collapsed);
+        const effNodes = collapsedResult.nodes;
+        const effEdges = collapsedResult.edges;
+
+        if (effNodes.length === 0) {
             app.innerHTML = `
                 <h2>Dependencies</h2>
-                ${renderDepsToolbar(includeTerminal, focusId, hops)}
+                ${renderDepsToolbar(includeTerminal, focusId, hops, collapsed)}
                 <div class="empty">No issues to graph.</div>`;
-            wireDepsToolbar();
+            wireDepsToolbar(collapsed);
             return;
         }
 
-        const layers = layerize(nodes, edges);
+        const layers = layerize(effNodes, effEdges);
         const layout = layoutLayers(layers);
-        const svg = renderGraphSvg(nodes, edges, layout);
+        const svg = renderGraphSvg(effNodes, effEdges, layout);
 
         app.innerHTML = `
-            <h2>Dependencies (${nodes.length} nodes, ${edges.length} edges)</h2>
-            <p class="meta">Edges flow downward: a node above blocks a node below it. Click a node for details.</p>
-            ${renderDepsToolbar(includeTerminal, focusId, hops)}
+            <h2>Dependencies (${effNodes.length} nodes, ${effEdges.length} edges)</h2>
+            <p class="meta">Edges flow downward: a node above blocks a node below it. Click a node for details. Click an epic label to collapse its cluster; click a collapsed placeholder to expand it.</p>
+            ${renderDepsToolbar(includeTerminal, focusId, hops, collapsed)}
             <div id="graph-container">${svg}</div>
             <aside id="graph-panel" class="notice" style="display: none;"></aside>`;
-        wireDepsToolbar();
-        wireGraphInteraction(nodeById);
+        wireDepsToolbar(collapsed);
+        wireGraphInteraction(nodeById, collapsed);
     } catch (e) {
         app.innerHTML = `<div class="empty">load failed: ${escapeHtml(e.message)}</div>`;
     }
 }
 
-function renderDepsToolbar(includeTerminal, focusId, hops) {
+function renderDepsToolbar(includeTerminal, focusId, hops, collapsed) {
+    const list = collapsed && collapsed.size > 0
+        ? `<div class="meta" style="margin-top: 0.25rem;">collapsed: ${[...collapsed]
+            .map((e) => `<span class="tag">${escapeHtml(e)}</span>`)
+            .join(" ")}</div>`
+        : "";
     return `
         <div class="toolbar">
             <label><input type="checkbox" id="deps-include-terminal" ${includeTerminal ? "checked" : ""}> include terminal (done/dropped)</label>
@@ -614,21 +629,19 @@ function renderDepsToolbar(includeTerminal, focusId, hops) {
             <label>hops <input id="deps-hops" type="number" value="${hops}" min="1" max="10" style="width: 4em;"></label>
             <button id="deps-apply">Apply</button>
             <button id="deps-clear-focus">Clear focus</button>
-        </div>`;
+            ${collapsed && collapsed.size > 0 ? `<button id="deps-expand-all">Expand all epics</button>` : ""}
+        </div>${list}`;
 }
 
-function wireDepsToolbar() {
+function wireDepsToolbar(collapsed) {
     const apply = document.getElementById("deps-apply");
     const clearFocus = document.getElementById("deps-clear-focus");
+    const expandAll = document.getElementById("deps-expand-all");
     if (apply) {
         apply.onclick = () => {
-            const next = new URLSearchParams();
-            if (document.getElementById("deps-include-terminal").checked) next.set("all", "true");
-            const focus = document.getElementById("deps-focus").value.trim();
-            if (focus) {
-                next.set("focus", focus);
-                const hops = document.getElementById("deps-hops").value.trim();
-                if (hops && hops !== "1") next.set("hops", hops);
+            const next = currentDepsParams();
+            if (collapsed && collapsed.size > 0) {
+                next.set("collapsed", [...collapsed].join(","));
             }
             setHash("deps", next);
         };
@@ -637,9 +650,79 @@ function wireDepsToolbar() {
         clearFocus.onclick = () => {
             const next = new URLSearchParams();
             if (document.getElementById("deps-include-terminal").checked) next.set("all", "true");
+            if (collapsed && collapsed.size > 0) {
+                next.set("collapsed", [...collapsed].join(","));
+            }
             setHash("deps", next);
         };
     }
+    if (expandAll) {
+        expandAll.onclick = () => {
+            const next = currentDepsParams();
+            setHash("deps", next);
+        };
+    }
+}
+
+/// Snapshot the toolbar's current focus / hops / scope into a URLSearchParams.
+function currentDepsParams() {
+    const next = new URLSearchParams();
+    if (document.getElementById("deps-include-terminal")?.checked) next.set("all", "true");
+    const focus = document.getElementById("deps-focus")?.value.trim();
+    if (focus) {
+        next.set("focus", focus);
+        const hops = document.getElementById("deps-hops")?.value.trim();
+        if (hops && hops !== "1") next.set("hops", hops);
+    }
+    return next;
+}
+
+/// Replace each collapsed-epic's members with a single placeholder node;
+/// rewire edges. Returns { nodes, edges } with the collapse applied.
+function collapseClusters(nodes, edges, collapsedSet) {
+    if (!collapsedSet || collapsedSet.size === 0) {
+        return { nodes, edges };
+    }
+    const memberToPlaceholderId = new Map();
+    const placeholderByEpic = new Map();
+    const survivors = [];
+    for (const n of nodes) {
+        if (n.epic && collapsedSet.has(n.epic)) {
+            if (!placeholderByEpic.has(n.epic)) {
+                placeholderByEpic.set(n.epic, {
+                    id: `cluster:${n.epic}`,
+                    title: n.epic,
+                    type: "epic",
+                    state: "epic",
+                    priority: null,
+                    blocker: null,
+                    epic: n.epic,
+                    blocked_by: [],
+                    blocks: [],
+                    members: [],
+                    isPlaceholder: true,
+                });
+            }
+            const ph = placeholderByEpic.get(n.epic);
+            ph.members.push(n.id);
+            memberToPlaceholderId.set(n.id, ph.id);
+        } else {
+            survivors.push(n);
+        }
+    }
+    const newNodes = [...survivors, ...placeholderByEpic.values()];
+    const newEdges = [];
+    const seen = new Set();
+    for (const e of edges) {
+        const from = memberToPlaceholderId.get(e.from) ?? e.from;
+        const to = memberToPlaceholderId.get(e.to) ?? e.to;
+        if (from === to) continue; // intra-cluster edge dropped
+        const key = `${from}->${to}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        newEdges.push({ from, to });
+    }
+    return { nodes: newNodes, edges: newEdges };
 }
 
 function collectEdges(nodes) {
@@ -712,7 +795,22 @@ function layerize(nodes, edges) {
         byLayer.get(l).push(n);
     }
     for (const arr of byLayer.values()) {
-        arr.sort((a, b) => a.id - b.id);
+        // Issue #9: within a layer, sort by epic first (no-epic group
+        // first, then epic groups alphabetically by slug), then by id
+        // within each group. This makes epic-cluster spans contiguous so
+        // the SVG layout can draw a single background rect per cluster.
+        arr.sort((a, b) => {
+            const ae = a.epic || "";
+            const be = b.epic || "";
+            if (ae !== be) {
+                if (ae === "") return -1;
+                if (be === "") return 1;
+                return ae < be ? -1 : 1;
+            }
+            const ai = String(a.id);
+            const bi = String(b.id);
+            return ai < bi ? -1 : ai > bi ? 1 : 0;
+        });
     }
     return byLayer;
 }
@@ -720,6 +818,7 @@ function layerize(nodes, edges) {
 function layoutLayers(byLayer) {
     const layers = [...byLayer.entries()].sort((a, b) => a[0] - b[0]);
     const positions = new Map();
+    const clusters = []; // {epic, layer, x_min, x_max, y, count}
     const nodeWidth = 80;
     const nodeHeight = 90;
     const padding = 30;
@@ -732,13 +831,32 @@ function layoutLayers(byLayer) {
         layerNodes.forEach((n, j) => {
             positions.set(n.id, { x: xStart + j * nodeWidth, y, layer: layerIdx });
         });
+        // Detect contiguous epic runs and record cluster spans for the
+        // rendering pass.
+        let runStart = 0;
+        for (let j = 1; j <= layerNodes.length; j++) {
+            const prevEpic = layerNodes[j - 1].epic || "";
+            const curEpic = j < layerNodes.length ? (layerNodes[j].epic || "") : null;
+            const ended = j === layerNodes.length || curEpic !== prevEpic;
+            if (ended && prevEpic) {
+                clusters.push({
+                    epic: prevEpic,
+                    layer: layerIdx,
+                    x_min: xStart + runStart * nodeWidth,
+                    x_max: xStart + (j - 1) * nodeWidth,
+                    y,
+                    count: j - runStart,
+                });
+            }
+            if (curEpic !== prevEpic) runStart = j;
+        }
     });
     const height = layers.length * nodeHeight + padding * 2;
-    return { positions, width, height };
+    return { positions, width, height, clusters };
 }
 
 function renderGraphSvg(nodes, edges, layout) {
-    const { positions, width, height } = layout;
+    const { positions, width, height, clusters } = layout;
     const arrowDef = `
         <defs>
             <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5"
@@ -746,6 +864,28 @@ function renderGraphSvg(nodes, edges, layout) {
                 <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--muted)"/>
             </marker>
         </defs>`;
+    // Issue #9: cluster background + label render BEFORE edges and nodes
+    // so they sit at the back of the z-order. Translucent fill + label
+    // above the rect; label is clickable in wireGraphInteraction.
+    const clusterSvg = (clusters || []).map((c) => {
+        const padX = 18;
+        const padY = 26;
+        const rectX = c.x_min - padX;
+        const rectY = c.y - padY;
+        const rectW = (c.x_max - c.x_min) + padX * 2;
+        const rectH = padY * 2 + 28;
+        const hue = epicHue(c.epic);
+        const fill = `hsla(${hue}, 60%, 50%, 0.10)`;
+        const stroke = `hsla(${hue}, 60%, 50%, 0.35)`;
+        return `
+            <g class="epic-cluster" data-epic="${escapeHtml(c.epic)}">
+                <rect class="epic-cluster-bg" x="${rectX}" y="${rectY}" width="${rectW}" height="${rectH}"
+                      rx="8" ry="8" fill="${fill}" stroke="${stroke}" stroke-width="1"/>
+                <text class="epic-label" x="${(c.x_min + c.x_max) / 2}" y="${rectY - 4}"
+                      text-anchor="middle" font-size="11" font-weight="600"
+                      fill="hsl(${hue}, 70%, 70%)">${escapeHtml(c.epic)}</text>
+            </g>`;
+    }).join("");
     const edgeSvg = edges
         .map((e) => {
             const a = positions.get(e.from);
@@ -760,6 +900,22 @@ function renderGraphSvg(nodes, edges, layout) {
         .map((n) => {
             const p = positions.get(n.id);
             if (!p) return "";
+            // Collapsed-cluster placeholder: rounded rect with "epic (N)" label.
+            if (n.isPlaceholder) {
+                const w = 110;
+                const h = 38;
+                const x = p.x - w / 2;
+                const y = p.y - h / 2;
+                const hue = epicHue(n.epic);
+                const fill = `hsl(${hue}, 50%, 30%)`;
+                return `
+                    <g class="graph-node graph-placeholder" data-cluster-epic="${escapeHtml(n.epic)}" style="cursor: pointer;">
+                        <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" ry="6"
+                              fill="${fill}" stroke="var(--fg)" stroke-width="2"/>
+                        <text x="${p.x}" y="${p.y + 4}" text-anchor="middle" font-size="11"
+                              fill="var(--fg)" font-weight="600">${escapeHtml(n.epic)} (${n.members.length})</text>
+                    </g>`;
+            }
             const r = PRIORITY_RADIUS[n.priority] ?? DEFAULT_RADIUS;
             const fill = STATE_COLORS[n.state] ?? "#888";
             const strokeW = n.priority ? 3 : 1;
@@ -778,6 +934,7 @@ function renderGraphSvg(nodes, edges, layout) {
     return `
         <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg" style="background: var(--bg-alt); border-radius: 4px;">
             ${arrowDef}
+            ${clusterSvg}
             ${edgeSvg}
             ${nodeSvg}
         </svg>
@@ -785,8 +942,17 @@ function renderGraphSvg(nodes, edges, layout) {
             ${Object.entries(STATE_COLORS)
                 .map(([s, c]) => `<span class="tag" style="background: ${c}; color: var(--bg); border-color: ${c};">${s}</span>`)
                 .join(" ")}
-            · larger circle = higher priority · orange dot = blocker set
+            · larger circle = higher priority · orange dot = blocker set · click epic label to collapse cluster
         </div>`;
+}
+
+/// Deterministic string-to-hue so each epic gets a stable visual color.
+function epicHue(epic) {
+    let h = 0;
+    for (let i = 0; i < epic.length; i++) {
+        h = (h * 31 + epic.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h) % 360;
 }
 
 function truncate(s, max) {
@@ -795,9 +961,23 @@ function truncate(s, max) {
     return s.slice(0, max - 1) + "…";
 }
 
-function wireGraphInteraction(nodeById) {
+function wireGraphInteraction(nodeById, collapsed) {
+    const currentCollapsed = new Set(collapsed || []);
+
     document.querySelectorAll("g.graph-node").forEach((g) => {
-        g.addEventListener("click", () => {
+        g.addEventListener("click", (ev) => {
+            // Placeholder → expand the cluster (issue #9).
+            if (g.classList.contains("graph-placeholder")) {
+                ev.stopPropagation();
+                const epic = g.dataset.clusterEpic;
+                const next = currentCollapsed;
+                next.delete(epic);
+                const params = currentDepsParams();
+                if (next.size > 0) params.set("collapsed", [...next].join(","));
+                else params.delete("collapsed");
+                setHash("deps", params);
+                return;
+            }
             const id = Number(g.dataset.id);
             const n = nodeById.get(id);
             if (!n) return;
@@ -814,6 +994,20 @@ function wireGraphInteraction(nodeById) {
                 Blocks: ${n.blocks.length === 0 ? "(none)" : n.blocks.map((id) => `<a href="#/issues/${id}">#${id}</a>`).join(", ")}<br>
                 Blocked by: ${n.blocked_by.length === 0 ? "(none)" : n.blocked_by.map((id) => `<a href="#/issues/${id}">#${id}</a>`).join(", ")}<br>
                 <a href="#/issues/${n.id}">open detail →</a>`;
+        });
+    });
+
+    // Issue #9: epic label click → collapse the cluster.
+    document.querySelectorAll("g.epic-cluster text.epic-label").forEach((label) => {
+        label.style.cursor = "pointer";
+        label.addEventListener("click", (ev) => {
+            ev.stopPropagation();
+            const epic = label.parentElement.dataset.epic;
+            const next = currentCollapsed;
+            next.add(epic);
+            const params = currentDepsParams();
+            params.set("collapsed", [...next].join(","));
+            setHash("deps", params);
         });
     });
 }

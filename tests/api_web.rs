@@ -128,6 +128,11 @@ fn app_js_is_served() {
     assert!(body.contains("layerize"));
     assert!(body.contains("nHopNeighborhood"));
     assert!(body.contains("STATE_COLORS"));
+    // Issue #9: epic clustering in the deps graph.
+    assert!(body.contains("collapseClusters"));
+    assert!(body.contains("epic-cluster"));
+    assert!(body.contains("epicHue"));
+    assert!(body.contains("collapsed"));
 }
 
 #[test]
