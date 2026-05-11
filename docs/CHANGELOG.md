@@ -10,6 +10,15 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- `docs/architecture/host-adapter.md`: implementation of the
+  host-adapter spec. Documents the registry (AgentDef + ROSTER as
+  const code with rationale), bash-pattern conventions including
+  `--actor` attribution baked into patterns, per-host module layout
+  for `claude_code/` and `opencode/`, the materialize-time shadow
+  validator (its prefix-matching algorithm and the registry
+  narrowings it forced), idempotent materialization via
+  `write_if_changed`, dual install on disjoint directories, and a
+  checklist for adding a third adapter. (#19)
 - `docs/architecture/overview.md`: orientation doc for new
   contributors. Build targets, one-paragraph-per-module summaries,
   cross-cutting invariants (files-of-record, single-writer SQLite,
