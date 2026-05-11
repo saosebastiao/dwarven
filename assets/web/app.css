@@ -242,10 +242,19 @@ details[open] {
     margin: 0.5rem 0;
 }
 
-.graph-node:hover circle {
+.graph-node:hover circle,
+.graph-node:hover rect {
     stroke-width: 4;
 }
 
 #graph-panel a {
     color: var(--accent);
+}
+
+.epic-cluster .epic-label {
+    user-select: none;
+}
+
+.epic-cluster .epic-label:hover {
+    text-decoration: underline;
 }
