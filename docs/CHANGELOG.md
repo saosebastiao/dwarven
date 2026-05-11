@@ -10,6 +10,15 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- `docs/web-ui.md`: user-facing screen-by-screen walkthrough of the
+  web UI. Conventions (hash routing, real-time updates, terminal-state
+  read-only) at the top, then sections for Inbox, Issues list, Issue
+  detail (with full mutation form table), Deps (visual encoding +
+  epic clustering + focus), Schedule (rank columns + override
+  controls), Daemon (status + reindex/shutdown buttons), and Config
+  (form vs raw view). Each screen notes its common pitfalls. Closes
+  with a "what's not in the UI" section pointing CLI-only operations
+  back to the CLI reference. (#16)
 - `docs/http-api-reference.md`: endpoint catalog for the local
   coordination hub HTTP API. Conventions (base URL, error envelope,
   actor attribution) up top, then sections per resource: daemon

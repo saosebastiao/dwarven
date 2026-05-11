@@ -2,12 +2,12 @@
 id: 16
 title: 'docs/web-ui.md: screen-by-screen walkthrough'
 type: doc
-state: doc
+state: done
 priority: p2
 epic: user-docs
 created: 2026-05-11T05:16:45Z
 created_by: maintainer
-updated: 2026-05-11T05:16:45Z
+updated: 2026-05-11T05:25:48Z
 ---
 User-facing walkthrough of the web UI. The spec (web-ui.md is in docs/specs/) defines what each screen should do; this doc is for someone USING the UI.
 
