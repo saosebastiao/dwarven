@@ -10,6 +10,14 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- `evals/MANUAL-CHECKLIST.md`: companion to the YAML-driven eval
+  framework for validating agent-prompt framing inside a Claude Code
+  session without an `ANTHROPIC_API_KEY`. One bait prompt per agent
+  targeting a load-bearing red-flag row; explicit pass / fail
+  criteria; a "Reading results" section walking through the three
+  failure modes (full bait, partial bait, refusal-for-wrong-reason)
+  and how to adjust `src/adapter/registry.rs` framing in response.
+  Comparison table with the API runner. (#25)
 - Substantive prompt framing for all 10 agents
   (`src/adapter/registry.rs`). Added two new `AgentDef` fields:
   `red_flags` (Markdown anti-rationalization table) and `verification`
