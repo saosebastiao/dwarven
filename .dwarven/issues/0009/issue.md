@@ -2,12 +2,12 @@
 id: 9
 title: 'Web UI: epic-clustered grouping in deps graph'
 type: feature
-state: pm
+state: done
 priority: p2
 epic: web-ui-polish
 created: 2026-05-10T02:04:31Z
 created_by: maintainer
-updated: 2026-05-10T02:04:31Z
+updated: 2026-05-11T02:59:23Z
 ---
 web-ui.md#R7.4 specifies cluster grouping by epic in the dependencies graph: "nodes are grouped by `epic` when set; clusters can be collapsed."
 
