@@ -8,6 +8,17 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ## [Unreleased]
 
+### Added
+
+- `docs/getting-started.md`: end-to-end quickstart walkthrough.
+  Covers prerequisites, `cargo install --path .`, `dwarven init`,
+  host adapter choice (Claude Code vs opencode) with the materialize-time
+  vs PreToolUse-hook enforcement trade-off, starting the daemon
+  foreground or detached, the web UI tour, filing a first issue,
+  dispatching the first agent (`/spec 1` vs `@spec please pick up
+  issue 1`), and walking the pipeline once. Linked from README and
+  forward to the other user docs. (#12)
+
 ### Changed
 
 - README rewritten to reflect v1+v2 shipped state. Status callout now
@@ -16,6 +27,8 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
   rather than "implementation pending." Hosts section updated to
   document both adapters as shipped. Repository layout, what's-shipped
   table, and documentation link map added. (#11)
+- `dwarven init --host` help text corrected: previously said "Not yet
+  implemented"; now lists the shipped adapters (`claude-code`, `opencode`).
 
 ### Added
 

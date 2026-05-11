@@ -61,7 +61,7 @@ struct Cli {
 enum Command {
     /// Initialize .dwarven/ in the current directory.
     Init {
-        /// Host adapter to install (e.g., claude-code). May be repeated. Not yet implemented.
+        /// Host adapter to install (claude-code, opencode). May be repeated.
         #[arg(long)]
         host: Vec<String>,
     },

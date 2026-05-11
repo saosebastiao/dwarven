@@ -5,7 +5,7 @@ id = "30fbb225-a67e-4340-9e75-9dba26b74484"
 name = "dwarven"
 
 [counters]
-next_issue_id = 12
+next_issue_id = 18
 
 [daemon]
 port = 7777
