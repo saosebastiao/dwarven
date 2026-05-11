@@ -2,12 +2,12 @@
 id: 12
 title: 'docs/getting-started.md: quickstart walkthrough'
 type: doc
-state: doc
+state: done
 priority: p1
 epic: user-docs
 created: 2026-05-11T05:16:26Z
 created_by: maintainer
-updated: 2026-05-11T05:16:26Z
+updated: 2026-05-11T05:19:37Z
 ---
 End-to-end quickstart for a new user: install, init, choose adapter, start daemon, open web UI, file first issue, dispatch first agent, walk pipeline once.
 
