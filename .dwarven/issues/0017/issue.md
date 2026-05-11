@@ -2,12 +2,12 @@
 id: 17
 title: 'docs/troubleshooting.md: common issues + recovery'
 type: doc
-state: doc
+state: done
 priority: p2
 epic: user-docs
 created: 2026-05-11T05:16:51Z
 created_by: maintainer
-updated: 2026-05-11T05:16:51Z
+updated: 2026-05-11T05:26:53Z
 ---
 Common-issues-and-recovery reference. Builds on the rest of the docs landing.
 

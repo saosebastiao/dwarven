@@ -10,6 +10,14 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- `docs/troubleshooting.md`: symptom → cause → fix reference for
+  common failures. Sections: daemon (stale PID, port-in-use, web UI
+  "connecting…"), CLI (illegal transition, dep cycle, index drift,
+  config validation, adapter pattern shadowing), eval runner
+  (`ANTHROPIC_API_KEY`), SSE (`stream.refresh-required` semantics on
+  reconnect), and storage (corrupt issue files, advisory-lock races).
+  Closes with a "where to file a bug" checklist. Completes the
+  user-facing docs arc started by #11. (#17)
 - `docs/web-ui.md`: user-facing screen-by-screen walkthrough of the
   web UI. Conventions (hash routing, real-time updates, terminal-state
   read-only) at the top, then sections for Inbox, Issues list, Issue
