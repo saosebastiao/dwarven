@@ -1,4 +1,6 @@
 pub mod claude_code;
+pub mod opencode;
+pub mod registry;
 
 use std::path::Path;
 
@@ -16,8 +18,9 @@ pub struct ChangeSummary {
 pub fn install(host: &str, repo_root: &Path) -> Result<ChangeSummary> {
     match host {
         "claude-code" => claude_code::install(repo_root),
+        "opencode" => opencode::install(repo_root),
         other => Err(anyhow::anyhow!(
-            "unknown host adapter '{other}'; supported: claude-code"
+            "unknown host adapter '{other}'; supported: claude-code, opencode"
         )),
     }
 }
