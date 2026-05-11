@@ -10,6 +10,15 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- `docs/configuration.md`: `.dwarven/config.toml` reference. Section-
+  by-section: `[repo]`, `[counters]`, `[daemon]`, `[scheduler]` with
+  `[scheduler.priority_weights]` sub-table, `[triage]`. Each key with
+  type, default, restart-required flag, and notes. Honestly flags two
+  known limitations: `daemon.bind` is validated but ignored (daemon
+  hardcodes `127.0.0.1`), and `triage.stale_threshold_days` is
+  validated but not yet consumed. Tuning guidance for the scheduler
+  weights and `alpha`. Validation-error table. Cross-refs into
+  `coordination-hub.md#R10`, `dep-graph.md`, and troubleshooting. (#14)
 - `docs/cli-reference.md`: standalone reference for every `dwarven`
   subcommand, flag, and exit code with realistic examples. Covers
   global flags, init (including dual host install), the full issue

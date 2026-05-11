@@ -2,12 +2,12 @@
 id: 14
 title: 'docs/configuration.md: config.toml reference'
 type: doc
-state: doc
+state: done
 priority: p2
 epic: user-docs
 created: 2026-05-11T05:16:33Z
 created_by: maintainer
-updated: 2026-05-11T05:16:33Z
+updated: 2026-05-11T05:22:36Z
 ---
 Reference for every key in .dwarven/config.toml. The spec (coordination-hub.md#R10) defines the schema; this doc is the user-facing reference with explanations.
 

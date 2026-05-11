@@ -11,7 +11,7 @@ agent host.
 - A repository with `.dwarven/` initialized.
 - One host adapter installed (either Claude Code or opencode).
 - The local coordination hub running.
-- The web UI open at `http://127.0.0.1:8474`.
+- The web UI open at `http://127.0.0.1:7777`.
 - One issue filed and dispatched to its first agent.
 
 ## Prerequisites
@@ -140,7 +140,7 @@ dwarven serve
 You should see something like:
 
 ```
-daemon listening on http://127.0.0.1:8474
+daemon listening on http://127.0.0.1:7777
 index: healthy (12 issues, 4 dependencies)
 file watcher: watching .dwarven/issues/
 ```
@@ -161,7 +161,7 @@ dwarven daemon status
 In a browser, visit:
 
 ```
-http://127.0.0.1:8474
+http://127.0.0.1:7777
 ```
 
 You'll land on the **Inbox** — issues that currently need your attention
