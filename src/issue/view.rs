@@ -1,3 +1,8 @@
+//! `dwarven issue view` — print an issue and its comment thread.
+//!
+//! Read-only. Does not take the repo lock. Supports `--no-comments`,
+//! `--state-history`, and `--last <N>` filters on the comment thread.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

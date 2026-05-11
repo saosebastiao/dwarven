@@ -1,3 +1,13 @@
+//! `dwarven issue dep {add,remove}` — manage dependency edges.
+//!
+//! Edges are stored in frontmatter on both endpoints (`blocks` on the
+//! source, `blocked_by` on the target). Both writes happen atomically
+//! under one repo lock. Cycle detection runs on every add; the error
+//! names the offending cycle.
+//!
+//! Removing an edge that doesn't exist is an error (404-equivalent
+//! from the HTTP layer).
+
 use std::collections::HashSet;
 use std::path::PathBuf;
 

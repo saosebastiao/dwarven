@@ -1,3 +1,9 @@
+//! `dwarven issue priority-override` — absolute scheduler rank override.
+//!
+//! Bypasses the dep-graph computation. Maintainer-only; in the R13
+//! deny list for every host adapter. See [`crate::scheduler`] for the
+//! algorithm and `dep-graph.md#R4` for the policy.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

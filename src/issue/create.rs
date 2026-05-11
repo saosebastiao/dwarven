@@ -1,3 +1,10 @@
+//! `dwarven issue create` business logic.
+//!
+//! Allocates `next_issue_id` under the repo lock, writes
+//! `issue.md` + creation-comment file, and (if requested) sets the
+//! initial blocker / dependency edges. Also enforces type, state,
+//! priority, and title validation.
+
 use std::fs;
 use std::io::{self, Read};
 use std::path::PathBuf;
@@ -27,6 +34,11 @@ const PRIORITIES: &[&str] = &["p0", "p1", "p2"];
 
 const TITLE_MAX: usize = 120;
 
+/// Args for `dwarven issue create`.
+///
+/// `state`, `priority`, `epic`, and the dependency lists are optional;
+/// `state` defaults to the per-type initial state from
+/// `work-states.md#R6.1`.
 pub struct CreateArgs {
     pub repo_root: PathBuf,
     pub actor: String,
@@ -43,6 +55,9 @@ pub struct CreateArgs {
     pub epic: Option<String>,
 }
 
+/// Source of the body content for `create` / `comment`-style mutations.
+/// Each variant maps to a CLI flag: `--body`, `--body-file`, `--body-stdin`,
+/// or none for no body.
 pub enum BodyInput {
     None,
     Inline(String),

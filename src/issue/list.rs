@@ -1,3 +1,9 @@
+//! `dwarven issue list` — filter and sort the issue collection.
+//!
+//! Read-only. Walks `.dwarven/issues/` for every invocation (no
+//! SQLite). O(n) in the number of issues; at hundreds-of-issues scale
+//! this is sub-second.
+
 use std::cmp::Ordering;
 use std::path::PathBuf;
 

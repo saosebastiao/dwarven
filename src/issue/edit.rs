@@ -1,3 +1,9 @@
+//! `dwarven issue edit` — edit low-churn frontmatter fields.
+//!
+//! `--title`, `--type`, `--epic`. Body changes are out of scope; use
+//! comments or direct file edits for those. Changing `--type` does
+//! not re-route the state.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

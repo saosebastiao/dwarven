@@ -1,3 +1,12 @@
+//! Host adapter dispatch.
+//!
+//! [`install`] routes `dwarven init --host <h>` to the named host
+//! module. Each host module (`claude_code`, `opencode`) renders the
+//! host-agnostic [`registry::ROSTER`] into host-specific files.
+//!
+//! Architecture: [`docs/architecture/host-adapter.md`](../../../docs/architecture/host-adapter.md).
+//! Spec: [`docs/specs/host-adapter.md`](../../../docs/specs/host-adapter.md).
+
 pub mod claude_code;
 pub mod opencode;
 pub mod registry;
@@ -6,6 +15,12 @@ use std::path::Path;
 
 use anyhow::Result;
 
+/// Counter returned by adapter installation. `written` counts files
+/// whose content changed (or didn't previously exist); `unchanged`
+/// counts files whose content matched the new render byte-for-byte.
+///
+/// `written == 0 && unchanged > 0` after a re-run indicates the
+/// adapter is fully idempotent against the current registry state.
 #[derive(Debug, Clone, Copy)]
 pub struct ChangeSummary {
     pub written: usize,

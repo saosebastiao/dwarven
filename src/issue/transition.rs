@@ -1,3 +1,12 @@
+//! `dwarven issue transition` — move an issue to a new state.
+//!
+//! Validates the edge against the state graph in
+//! `docs/specs/work-states.md`. `--override` bypasses graph validation
+//! (maintainer escape hatch) but still rejects targeting terminal
+//! states; use [`crate::issue::close`] for those.
+//!
+//! Auto-emits a `state-change` comment carrying the `from`/`to` pair.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

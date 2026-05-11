@@ -1,3 +1,10 @@
+//! `dwarven issue close` — terminal transition to `done` or `dropped`.
+//!
+//! Requires a closure comment (`--comment`, `--comment-file`, or
+//! `--comment-stdin`). Recorded both as the closure comment and as
+//! the state-change body. Terminal transitions are universal: any
+//! active state can reach `done` or `dropped` via `close`.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

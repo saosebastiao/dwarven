@@ -1,3 +1,9 @@
+//! `dwarven issue blocker {set,clear}` — manage the blocker field.
+//!
+//! Set: `maintainer-input`, `external`, or `upstream`. A non-`none`
+//! blocker pushes the issue to the maintainer's inbox. The blocker
+//! field is independent of `blocked_by` (which is a dependency edge).
+
 use std::path::PathBuf;
 
 use anyhow::Result;

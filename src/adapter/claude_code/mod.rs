@@ -1,3 +1,20 @@
+//! Claude Code host adapter.
+//!
+//! Materializes the host-agnostic [`crate::adapter::registry::ROSTER`]
+//! into the Claude Code on-disk surface:
+//!
+//! - `.claude/agents/<name>.md` (one per agent; frontmatter declares
+//!   tool allowlist).
+//! - `.claude/commands/<name>.md` (slash commands).
+//! - `.claude/settings.json` (project-wide allow + R13 deny + hooks).
+//! - `.claude/hooks/{session-start,pre-tool-use}.sh`.
+//!
+//! Enforcement strategy: settings allowlist is the first line; the
+//! `pre-tool-use.sh` hook is a runtime second line of defense against
+//! any pattern that would slip through.
+//!
+//! See [`docs/architecture/host-adapter.md`](../../../../docs/architecture/host-adapter.md).
+
 pub mod agents;
 pub mod commands;
 pub mod hooks;
@@ -11,6 +28,12 @@ use anyhow::{Context, Result};
 use crate::adapter::ChangeSummary;
 use crate::storage::write_atomic;
 
+/// `dwarven init --host claude-code` entry point. Materializes the
+/// Claude Code adapter into `repo_root` and returns a counter of
+/// files written vs. unchanged.
+///
+/// Idempotent: re-running with the same registry state writes no files
+/// (every output matches what's already on disk).
 pub fn install(repo_root: &Path) -> Result<ChangeSummary> {
     let claude_dir = repo_root.join(".claude");
     let agents_dir = claude_dir.join("agents");

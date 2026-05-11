@@ -10,6 +10,13 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- Rustdoc coverage for the issue verbs and the adapter modules.
+  Module-level `//!` headers on `src/issue/mod.rs` and each of the
+  eleven verb modules (`create`, `view`, `list`, `transition`, `close`,
+  `comment`, `blocker`, `priority`, `priority_override`, `edit`, `dep`).
+  Extended `src/adapter/mod.rs` and `src/adapter/claude_code/mod.rs`
+  with substantive headers; `ChangeSummary` and `install` carry
+  item-level docs. Build clean. (#22)
 - Rustdoc coverage for the foundational modules (storage, index,
   scheduler). Module-level `//!` headers added to storage/mod.rs,
   storage/atomic.rs, storage/issue_file.rs, storage/comment_file.rs,

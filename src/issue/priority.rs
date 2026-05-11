@@ -1,3 +1,10 @@
+//! `dwarven issue priority` — set the maintainer-asserted priority.
+//!
+//! `p0`, `p1`, or `p2`. The scheduler uses this as the `base_priority`
+//! input; see [`crate::scheduler`] for how it combines with
+//! downstream-unblocking value. Maintainer-only by convention; the
+//! R13 deny list excludes this from every agent.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

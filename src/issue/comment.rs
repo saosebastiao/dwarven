@@ -1,3 +1,9 @@
+//! `dwarven issue comment` — append a comment.
+//!
+//! Allocates the next comment `seq` under the repo lock by scanning
+//! existing `comments/*.md` filenames, then atomic-writes the new
+//! comment file. Bumps `issue.updated`.
+
 use std::path::PathBuf;
 
 use anyhow::Result;
