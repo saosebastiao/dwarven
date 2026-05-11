@@ -1,3 +1,27 @@
+//! SQLite-backed derived index of `.dwarven/issues/`.
+//!
+//! The index is derived from files: deleting `.index.sqlite` and
+//! running [`rebuild`] reconstructs it. The daemon does this
+//! unconditionally at startup ([`coordination-hub.md#R3.3`]) and the
+//! `dwarven reindex` CLI does it on demand. The CLI never writes the
+//! index outside of `reindex`.
+//!
+//! ## Byte-reproducibility
+//!
+//! The index uses `journal_mode = DELETE` and inserts in id-ascending
+//! order so two consecutive rebuilds on the same canonical files
+//! produce byte-identical files (modulo SQLite-internal allocation).
+//! A `VACUUM` at the end of [`rebuild`] further normalizes the b-tree
+//! layout. The test `tests/reindex.rs::reindex_is_idempotent` asserts
+//! byte-identity.
+//!
+//! ## Health probe
+//!
+//! [`probe_health`] inspects the existing index file at daemon startup
+//! to report what state it was in (Missing / Corrupt / VersionMismatch
+//! / Ok). The result is logged but does not gate the rebuild: the
+//! daemon always rebuilds at startup, per spec.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -55,11 +79,16 @@ pub fn probe_health(path: &Path) -> Result<IndexHealth> {
     }
 }
 
+/// Run `PRAGMA integrity_check` and return `Ok(true)` only when SQLite
+/// reports the literal string `ok`.
 pub fn check_integrity(conn: &Connection) -> rusqlite::Result<bool> {
     let result: String = conn.query_row("PRAGMA integrity_check", [], |r| r.get(0))?;
     Ok(result == "ok")
 }
 
+/// Read the `value` column of the `meta` row with `key = 'schema_version'`.
+/// Returns `Ok(None)` if the row is absent (treated as corruption by
+/// [`probe_health`]).
 pub fn read_schema_version(conn: &Connection) -> rusqlite::Result<Option<i64>> {
     let raw: Option<String> = conn
         .query_row(
@@ -123,18 +152,21 @@ const SCHEMA_DDL: &[&str] = &[
     "CREATE INDEX idx_comment_kind ON comment(kind)",
 ];
 
+/// Args for the `dwarven reindex` CLI subcommand.
 pub struct ReindexArgs {
     pub repo_root: PathBuf,
     pub quiet: bool,
     pub json: bool,
 }
 
+/// Per-table totals from the most recent rebuild.
 pub struct ReindexStats {
     pub issues: usize,
     pub comments: usize,
     pub edges: usize,
 }
 
+/// `dwarven reindex` entry point. Calls [`rebuild`] and prints stats.
 pub fn run(args: ReindexArgs) -> Result<()> {
     let paths = RepoPaths::new(args.repo_root.clone());
     require_initialized(&paths)?;

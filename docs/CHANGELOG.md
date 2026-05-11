@@ -10,6 +10,13 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- Rustdoc coverage for the foundational modules (storage, index,
+  scheduler). Module-level `//!` headers added to storage/mod.rs,
+  storage/atomic.rs, storage/issue_file.rs, storage/comment_file.rs,
+  index.rs, scheduler/mod.rs, scheduler/compute.rs, scheduler/config.rs.
+  Item-level `///` docs added or extended for all pub types and
+  functions; cross-links into the architecture docs where load-bearing.
+  Build clean. (#21)
 - `docs/architecture/testing.md`: test surface and harness patterns
   for contributors. Layout (unit vs integration vs evals), the
   `common` harness (dwarven() builder, fresh_repo, DWARVEN_ACTOR

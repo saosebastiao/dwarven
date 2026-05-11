@@ -1,3 +1,15 @@
+//! Issue file (`issue.md`) read / write.
+//!
+//! Each issue is a Markdown file with YAML frontmatter. Frontmatter is
+//! `serde_yaml`-serialized from [`IssueFrontmatter`]; the body is
+//! arbitrary Markdown. The on-disk format is per
+//! `storage-model.md#R4`.
+//!
+//! Field order in [`IssueFrontmatter`] determines emit order. Optional
+//! fields use `skip_serializing_if = "Option::is_none"` / `Vec::is_empty"`
+//! so unset values do not appear on disk — keeps git diffs minimal and
+//! avoids implying state that was never set.
+
 use std::fs;
 use std::path::Path;
 
@@ -9,6 +21,8 @@ use super::atomic::write_atomic;
 /// Issue frontmatter per `storage-model.md#R4.3`.
 ///
 /// Field order in the struct determines emit order in the YAML frontmatter.
+/// The `#[serde(rename = "type")]` on `issue_type` is required because `type`
+/// is a Rust keyword.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IssueFrontmatter {
     pub id: u64,
@@ -33,11 +47,19 @@ pub struct IssueFrontmatter {
     pub updated: String,
 }
 
+/// In-memory pair of an issue's frontmatter and body. Reading
+/// `issue.md` produces this; mutations construct one and call
+/// [`write_issue`].
 pub struct IssueFile {
     pub frontmatter: IssueFrontmatter,
     pub body: String,
 }
 
+/// Serialize an [`IssueFile`] to `---\n<yaml>\n---\n<body>` and atomic-write
+/// it to `path`. Always uses [`write_atomic`]; safe under concurrent
+/// readers and the file watcher.
+///
+/// Returns the IO error of the temp-write or rename if either fails.
 pub fn write_issue(path: &Path, file: &IssueFile) -> Result<()> {
     let yaml = serde_yaml::to_string(&file.frontmatter)
         .context("serializing issue frontmatter")?;
@@ -79,6 +101,11 @@ pub fn enumerate_issue_ids(issues_dir: &Path) -> Result<Vec<u64>> {
     Ok(ids)
 }
 
+/// Read and deserialize an `issue.md`. Returns the parsed frontmatter
+/// + the body string (without the surrounding `---` fences).
+///
+/// Errors on missing file, malformed frontmatter delimiters, or YAML
+/// parse failure. The error message includes the offending path.
 pub fn read_issue(path: &Path) -> Result<IssueFile> {
     let raw = fs::read_to_string(path)
         .with_context(|| format!("reading {}", path.display()))?;

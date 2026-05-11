@@ -1,3 +1,16 @@
+//! Pure scheduler computation: DFS-with-memo over the blocks graph.
+//!
+//! [`compute`] is the IO entry point ([`RepoPaths`] → read files →
+//! [`compute_with`]). [`compute_with`] is the pure function suitable
+//! for unit tests; it takes a slice of [`IssueFrontmatter`] plus a
+//! [`SchedulerConfig`] and produces the ranked queue.
+//!
+//! Cycle detection uses white/gray/black coloring; members of a cycle
+//! have score forced to 0 and `in_cycle = true`. Edges that would form
+//! a cycle are rejected at creation time (`dwarven-cli.md#R6.11.3`);
+//! cycle detection here is the safety net for cycles introduced by
+//! direct file editing (`dep-graph.md#R7.2`).
+
 use std::collections::HashMap;
 
 use anyhow::Result;
@@ -37,12 +50,32 @@ pub struct ScheduledIssue {
     pub in_cycle: bool,
 }
 
+/// IO entry point. Reads the scheduler config, loads active issue
+/// frontmatters from `.dwarven/issues/`, and delegates to
+/// [`compute_with`].
+///
+/// "Active" excludes terminal-state issues (`done`, `dropped`) per
+/// `dep-graph.md#R3.1.2`.
 pub fn compute(paths: &RepoPaths) -> Result<Vec<ScheduledIssue>> {
     let cfg = read_scheduler_config(paths)?;
     let frontmatters = load_active_frontmatters(paths)?;
     Ok(compute_with(&frontmatters, &cfg))
 }
 
+/// Pure scheduler computation. Takes the active frontmatters + config,
+/// returns the ranked queue.
+///
+/// Algorithm:
+/// 1. Compute `score(i)` for each issue via DFS over `blocks(i)`,
+///    memoizing intermediate results.
+/// 2. Detect cycles via on-stack coloring; members get `score = 0` and
+///    `in_cycle = true`.
+/// 3. Determine `actionable`: not in a cycle, no active upstream
+///    `blocked_by`, no `blocker:*` set, not in `state: maintainer`.
+/// 4. Resolve `effective_priority`: `override_value` if set, else `score`.
+///
+/// Complexity: O(V + E) for the DFS, sub-millisecond at "hundreds of
+/// issues" scale.
 pub fn compute_with(
     frontmatters: &[IssueFrontmatter],
     cfg: &SchedulerConfig,

@@ -1,3 +1,13 @@
+//! Comment file (`.dwarven/issues/<id>/comments/<file>.md`) read / write.
+//!
+//! Comments are append-only, with `seq` allocated by [`next_comment_seq`]
+//! under the repo lock. Filenames encode `<seq>-<iso-date>-<author>.md`
+//! for filesystem-order chronology without trusting mtime.
+//!
+//! Comment kinds: `comment`, `state-change`, `blocker-set`,
+//! `blocker-cleared`, `priority-set`, `priority-cleared`, `dep-added`,
+//! `dep-removed`. Per `storage-model.md#R4.4`.
+
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -7,6 +17,11 @@ use serde::{Deserialize, Serialize};
 use super::atomic::write_atomic;
 
 /// Comment frontmatter per `storage-model.md#R4.4`.
+///
+/// `from` / `to` are present on state-change comments only.
+/// `blocker` is present on `blocker-set` comments only.
+/// State-change comments emitted at issue creation use the sentinel
+/// `from: created` per `storage-model.md#R4.4.4`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommentFrontmatter {
     pub seq: u32,
@@ -22,16 +37,19 @@ pub struct CommentFrontmatter {
     pub blocker: Option<String>,
 }
 
+/// Frontmatter + body pair for a single comment file.
 pub struct CommentFile {
     pub frontmatter: CommentFrontmatter,
     pub body: String,
 }
 
 /// Comment filename: `<seq:03>-<iso-filename>-<author>.md` per R4.4.2.
+/// Seq is zero-padded to 3 digits up to 999, then natural-width above.
 pub fn comment_filename(seq: u32, iso_filename: &str, author: &str) -> String {
     format!("{seq:03}-{iso_filename}-{author}.md")
 }
 
+/// Compose the full path for a comment file under `comments_dir`.
 pub fn comment_path(comments_dir: &Path, seq: u32, iso_filename: &str, author: &str) -> PathBuf {
     comments_dir.join(comment_filename(seq, iso_filename, author))
 }
@@ -75,6 +93,8 @@ mod tests {
     }
 }
 
+/// Serialize a [`CommentFile`] to `---\n<yaml>\n---\n<body>` and
+/// atomic-write it to `path`. Always uses [`write_atomic`].
 pub fn write_comment(path: &Path, file: &CommentFile) -> Result<()> {
     let yaml = serde_yaml::to_string(&file.frontmatter)
         .context("serializing comment frontmatter")?;
@@ -91,6 +111,8 @@ pub fn write_comment(path: &Path, file: &CommentFile) -> Result<()> {
     write_atomic(path, out.as_bytes())
 }
 
+/// Read and deserialize a comment file. Errors on missing file,
+/// malformed frontmatter delimiters, or YAML parse failure.
 pub fn read_comment(path: &Path) -> Result<CommentFile> {
     let raw = fs::read_to_string(path)
         .with_context(|| format!("reading {}", path.display()))?;

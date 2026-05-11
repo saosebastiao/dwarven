@@ -1,3 +1,10 @@
+//! Scheduler configuration: `α` and per-priority base weights.
+//!
+//! Loaded from `[scheduler]` in `.dwarven/config.toml`. Missing keys
+//! fall back to documented defaults per `coordination-hub.md#R10.3`.
+//! All values are re-read per scheduler query, so changes are live
+//! (no daemon restart required).
+
 use std::fs;
 
 use anyhow::{Context, Result, anyhow};
@@ -6,6 +13,11 @@ use crate::storage::config::RepoPaths;
 
 const DEFAULT_ALPHA: f64 = 0.5;
 
+/// Per-priority base weights for the dep-graph scheduler.
+///
+/// Invariant (enforced by [`PriorityWeights::validate`]): all weights
+/// are strictly positive, and `p0 >= p1 >= p2`. `unset` is unconstrained
+/// relative to `p2`.
 #[derive(Debug, Clone, Copy)]
 pub struct PriorityWeights {
     pub p0: f64,
@@ -15,6 +27,7 @@ pub struct PriorityWeights {
 }
 
 impl PriorityWeights {
+    /// Documented defaults: `p0=4, p1=2, p2=1, unset=1`.
     pub fn defaults() -> Self {
         Self {
             p0: 4.0,
@@ -24,6 +37,8 @@ impl PriorityWeights {
         }
     }
 
+    /// Look up the base weight for a priority string. Unknown values
+    /// (including `None`) fall through to `unset`.
     pub fn for_priority(&self, p: Option<&str>) -> f64 {
         match p {
             Some("p0") => self.p0,
@@ -52,6 +67,7 @@ impl PriorityWeights {
     }
 }
 
+/// Full `[scheduler]` config bundle: `α` plus per-priority weights.
 #[derive(Debug, Clone, Copy)]
 pub struct SchedulerConfig {
     pub alpha: f64,
@@ -59,6 +75,8 @@ pub struct SchedulerConfig {
 }
 
 impl SchedulerConfig {
+    /// Documented defaults: `alpha = 0.5`, weights from
+    /// [`PriorityWeights::defaults`].
     pub fn defaults() -> Self {
         Self {
             alpha: DEFAULT_ALPHA,
@@ -66,6 +84,9 @@ impl SchedulerConfig {
         }
     }
 
+    /// Enforce `alpha ∈ [0.0, 1.0]` and the [`PriorityWeights`] invariants.
+    /// Called both at daemon startup (single validation gate) and per
+    /// scheduler query (so a hot config edit is caught at the next request).
     pub fn validate(&self) -> Result<()> {
         if !(self.alpha >= 0.0 && self.alpha <= 1.0 && self.alpha.is_finite()) {
             return Err(anyhow!(
@@ -79,7 +100,12 @@ impl SchedulerConfig {
 }
 
 /// Read `[scheduler]` from `.dwarven/config.toml`. Missing keys fall back to
-/// documented defaults per `coordination-hub.md#R10.3`.
+/// documented defaults per `coordination-hub.md#R10.3`. The returned
+/// config is validated via [`SchedulerConfig::validate`] before return;
+/// callers can assume invariants hold.
+///
+/// Re-read per scheduler query (live config). At config-file size (~30
+/// lines) the extra parse cost is negligible.
 pub fn read_scheduler_config(paths: &RepoPaths) -> Result<SchedulerConfig> {
     let raw = fs::read_to_string(paths.config_path())
         .with_context(|| format!("reading {}", paths.config_path().display()))?;

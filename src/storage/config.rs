@@ -1,3 +1,15 @@
+//! Repo path resolution + the repo-wide advisory lock.
+//!
+//! [`RepoPaths`] is the resolved-paths convenience struct every other
+//! module takes; constructing it once per CLI invocation and threading
+//! it through avoids ad-hoc path manipulation.
+//!
+//! [`with_repo_lock`] is the single mechanism for repo-wide
+//! serialization of mutations. Every CLI mutation that bumps a counter,
+//! appends a comment (which scans for a fresh `seq`), or writes
+//! frontmatter takes this lock for the duration of its critical
+//! section.
+
 use std::fs::{self, OpenOptions};
 use std::path::{Path, PathBuf};
 
@@ -7,6 +19,12 @@ use toml_edit::{DocumentMut, value};
 
 use super::atomic::write_atomic;
 
+/// Resolved paths for a Dwarven-initialized repository.
+///
+/// Constructed once per command and passed by reference into every
+/// storage and business-logic helper. The `root` field is the
+/// repository root (the directory that contains `.dwarven/`), not the
+/// `.dwarven/` directory itself.
 #[derive(Clone)]
 pub struct RepoPaths {
     pub root: PathBuf,
@@ -17,43 +35,60 @@ impl RepoPaths {
         Self { root }
     }
 
+    /// `<root>/.dwarven/`.
     pub fn dwarven_dir(&self) -> PathBuf {
         self.root.join(".dwarven")
     }
 
+    /// `<root>/.dwarven/config.toml`.
     pub fn config_path(&self) -> PathBuf {
         self.dwarven_dir().join("config.toml")
     }
 
+    /// Advisory-lock file target. Not `config.toml` itself: atomic
+    /// rename-over-target severs locks held on the previous inode.
     pub fn lock_path(&self) -> PathBuf {
         self.dwarven_dir().join(".config.lock")
     }
 
+    /// `<root>/.dwarven/.index.sqlite`. The daemon owns writes; CLI
+    /// reads only (except `dwarven reindex`, which rebuilds).
     pub fn index_path(&self) -> PathBuf {
         self.dwarven_dir().join(".index.sqlite")
     }
 
+    /// `<root>/.dwarven/issues/`.
     pub fn issues_dir(&self) -> PathBuf {
         self.dwarven_dir().join("issues")
     }
 
+    /// `<root>/.dwarven/issues/<padded-id>/`.
     pub fn issue_dir(&self, id: u64) -> PathBuf {
         self.issues_dir().join(format_id(id))
     }
 
+    /// `<root>/.dwarven/issues/<padded-id>/issue.md`.
     pub fn issue_md(&self, id: u64) -> PathBuf {
         self.issue_dir(id).join("issue.md")
     }
 
+    /// `<root>/.dwarven/issues/<padded-id>/comments/`.
     pub fn comments_dir(&self, id: u64) -> PathBuf {
         self.issue_dir(id).join("comments")
     }
 }
 
+/// Format an issue id as the 4-digit zero-padded form used by the
+/// on-disk directory layout (`storage-model.md#R3`).
 pub fn format_id(id: u64) -> String {
     format!("{id:04}")
 }
 
+/// Error out if the repo at `paths.root` has no `.dwarven/config.toml`.
+///
+/// Called at the top of every CLI subcommand (except `init`) so that
+/// running against an uninitialized repo produces a clear error rather
+/// than a misleading "file not found" deep in the stack.
 pub fn require_initialized(paths: &RepoPaths) -> Result<()> {
     if !paths.config_path().exists() {
         return Err(anyhow!(
