@@ -163,7 +163,7 @@ dwarven serve
 open http://127.0.0.1:7777
 ```
 
-A walkthrough of filing your first issue and dispatching the first agent lives at [`docs/getting-started.md`](docs/getting-started.md) (in progress).
+A walkthrough of filing your first issue and dispatching the first agent lives at [`docs/getting-started.md`](docs/getting-started.md).
 
 ## Repository layout
 
@@ -219,10 +219,10 @@ Specs live flat at `docs/specs/*.md`. The top-level spec ([`docs/specs/dwarven.m
 
 ## Documentation
 
-- **For new users:** [`docs/getting-started.md`](docs/getting-started.md) (in progress) — quickstart walkthrough.
-- **For everyday use:** [`docs/cli-reference.md`](docs/cli-reference.md) (in progress) — every subcommand + flag + example. [`docs/configuration.md`](docs/configuration.md) (in progress) — every config.toml key.
-- **For integrations:** [`docs/http-api-reference.md`](docs/http-api-reference.md) (in progress) — endpoint catalog with examples.
-- **For the maintainer:** [`docs/web-ui.md`](docs/web-ui.md) (in progress) — web UI walkthrough. [`docs/troubleshooting.md`](docs/troubleshooting.md) (in progress) — common issues and recovery.
+- **For new users:** [`docs/getting-started.md`](docs/getting-started.md) — quickstart walkthrough.
+- **For everyday use:** [`docs/cli-reference.md`](docs/cli-reference.md) — every subcommand + flag + example. [`docs/configuration.md`](docs/configuration.md) — every config.toml key.
+- **For integrations:** [`docs/http-api-reference.md`](docs/http-api-reference.md) — endpoint catalog with examples.
+- **For the maintainer:** [`docs/web-ui.md`](docs/web-ui.md) — web UI walkthrough. [`docs/troubleshooting.md`](docs/troubleshooting.md) — common issues and recovery.
 - **Specifications** under [`docs/specs/`](docs/specs/) — what the system should do.
 - **Architecture** under [`docs/architecture/`](docs/architecture/) — how the system actually solves it.
 - **In-session context** in [`CLAUDE.md`](CLAUDE.md) — used by Claude Code; load-bearing project context.
