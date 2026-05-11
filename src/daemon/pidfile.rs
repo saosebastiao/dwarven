@@ -5,7 +5,7 @@
 //! "a daemon owns this repo" signal; its absence (after clean shutdown)
 //! is the "no daemon is running" signal. Distinguishing "pidfile
 //! present but process gone" (a crashed daemon) from "pidfile present
-//! and live" is the job of [`is_pid_alive`] / [`probe`].
+//! and live" is the job of [`read_pid`] + [`is_alive`].
 
 use std::fs;
 use std::path::Path;

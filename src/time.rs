@@ -1,3 +1,12 @@
+//! UTC ISO-8601 timestamp helpers.
+//!
+//! Two forms, both UTC-anchored:
+//! - [`iso_frontmatter`]: `YYYY-MM-DDTHH:MM:SSZ` for frontmatter fields.
+//! - [`iso_filename`]: `YYYY-MM-DDTHHMMZ` for comment filenames (no
+//!   colons; filesystem-safe across platforms).
+//!
+//! Per `storage-model.md#R4.3` and `R4.4`.
+
 use chrono::{DateTime, SecondsFormat, Utc};
 
 /// Frontmatter timestamp form: `YYYY-MM-DDTHH:MM:SSZ` (ISO 8601, UTC, second

@@ -2,7 +2,7 @@
 //!
 //! Every hub-tracked file in `.dwarven/` (issue.md, comment files,
 //! config.toml, settings.json, adapter outputs) is written through
-//! [`write_atomic`]. POSIX [`rename(2)`] within a single directory is
+//! [`write_atomic`]. POSIX `rename(2)` within a single directory is
 //! atomic: readers see either the old file or the complete new file,
 //! never a partial write or a torn truncate. This is the load-bearing
 //! invariant for file watchers (who must not emit reindex events on

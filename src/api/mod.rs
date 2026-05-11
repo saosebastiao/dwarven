@@ -1,7 +1,7 @@
 //! Daemon-side HTTP API + SSE event stream + embedded web UI.
 //!
-//! The router is built in [`server::router`] and bound by
-//! [`server::spawn`]. Per-resource handlers live in `issues.rs`,
+//! The router is built and bound by [`server::spawn`]. Per-resource
+//! handlers live in `issues.rs`,
 //! `mutations.rs`, `scheduler.rs`, `config.rs`, and `daemon_ops.rs`.
 //! Error envelope lives in [`error`]. Shared app state lives in
 //! [`state::AppState`]. The SSE event bus and the

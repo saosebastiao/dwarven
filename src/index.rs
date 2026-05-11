@@ -2,7 +2,7 @@
 //!
 //! The index is derived from files: deleting `.index.sqlite` and
 //! running [`rebuild`] reconstructs it. The daemon does this
-//! unconditionally at startup ([`coordination-hub.md#R3.3`]) and the
+//! unconditionally at startup (`coordination-hub.md#R3.3`) and the
 //! `dwarven reindex` CLI does it on demand. The CLI never writes the
 //! index outside of `reindex`.
 //!

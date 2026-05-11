@@ -1,3 +1,17 @@
+//! `dwarven` binary entry point.
+//!
+//! Single binary for both CLI (one-shot subcommands like `dwarven
+//! issue create`) and daemon (`dwarven serve`). clap dispatches into
+//! the per-verb modules under [`crate::issue`], [`crate::daemon`],
+//! [`crate::scheduler`], etc.
+//!
+//! The CLI / daemon division is documented in
+//! `docs/architecture/cli-vs-daemon.md`. The CLI is filesystem-only;
+//! the daemon owns the SQLite index, HTTP, and SSE.
+//!
+//! Module declarations here mirror those in `src/lib.rs` — cargo
+//! compiles each module under both targets.
+
 use std::path::PathBuf;
 
 use anyhow::Result;

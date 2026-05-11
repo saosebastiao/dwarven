@@ -10,6 +10,16 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- Rustdoc coverage for the crate root and remaining small modules.
+  Substantive `//!` on `src/lib.rs` (orientation, build targets,
+  module map with pointers to docs/architecture/overview.md),
+  `src/main.rs`, `src/init.rs`, `src/config.rs` (with a note
+  distinguishing it from the three other `config.rs` files in
+  different module paths), `src/time.rs`. Eight intra-doc-link
+  warnings fixed: references to private items rewired through their
+  public alternatives; non-link bracketed refs (`coordination-hub.md#R3.3`,
+  `rename(2)`) unbracketed. `cargo doc --no-deps` now produces zero
+  warnings. Completes the code-documentation arc (#18-#24). (#24)
 - Rustdoc coverage for the API and daemon modules. Module-level `//!`
   headers on `api/{mod,server,state,error,types,events,issues,config,daemon_ops}.rs`
   and `daemon/{mod,serve,control,pidfile,watcher}.rs`. Existing

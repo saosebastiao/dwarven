@@ -2,7 +2,8 @@
 //!
 //! [`install`] routes `dwarven init --host <h>` to the named host
 //! module. Each host module (`claude_code`, `opencode`) renders the
-//! host-agnostic [`registry::ROSTER`] into host-specific files.
+//! host-agnostic agent roster (see [`registry::roster`]) into
+//! host-specific files.
 //!
 //! Architecture: [`docs/architecture/host-adapter.md`](../../../docs/architecture/host-adapter.md).
 //! Spec: [`docs/specs/host-adapter.md`](../../../docs/specs/host-adapter.md).

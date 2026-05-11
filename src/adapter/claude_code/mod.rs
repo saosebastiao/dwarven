@@ -1,7 +1,8 @@
 //! Claude Code host adapter.
 //!
-//! Materializes the host-agnostic [`crate::adapter::registry::ROSTER`]
-//! into the Claude Code on-disk surface:
+//! Materializes the host-agnostic agent roster (see
+//! [`crate::adapter::registry::roster`]) into the Claude Code on-disk
+//! surface:
 //!
 //! - `.claude/agents/<name>.md` (one per agent; frontmatter declares
 //!   tool allowlist).

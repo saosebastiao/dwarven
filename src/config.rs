@@ -1,3 +1,15 @@
+//! `dwarven config {get,set}` CLI surface.
+//!
+//! Distinct from [`crate::daemon::config`] (which validates the full
+//! config at daemon startup), [`crate::scheduler::config`] (which
+//! reads `[scheduler]` for the scheduler), and
+//! [`crate::storage::config`] (which holds [`RepoPaths`] and the repo
+//! lock). The duplicate name is awkward — each module's `config.rs`
+//! is in a different module path, so they coexist.
+//!
+//! Values are parsed as int → float → bool → string; this module is
+//! the place where that user-facing parsing lives.
+
 use std::fs;
 use std::path::PathBuf;
 

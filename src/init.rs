@@ -1,3 +1,10 @@
+//! `dwarven init` — scaffold `.dwarven/` and optionally materialize
+//! one or more host adapters.
+//!
+//! Idempotent. Re-running `init` against an existing `.dwarven/`
+//! directory leaves the canonical files alone; re-running `--host <h>`
+//! against an already-installed adapter is a no-op.
+
 use std::fs;
 use std::path::Path;
 
