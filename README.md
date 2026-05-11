@@ -2,7 +2,7 @@
 
 A host-agnostic system for **specification-driven software development** with **strongly decoupled agents** and a **local coordination hub**.
 
-> **Status:** Pre-release, mid-pivot (2026-05). The architecture documented here is **v2**, a substantial rework of the inherited v0.1 design (Claude-Code-only, GitHub-coupled). v2 specifications are drafted under `docs/specs/`; implementation is pending. The current `agents/`, `skills/`, `commands/`, and `hooks/` directories implement v0.1 and are flagged stale — see [Status](#status).
+> **Status:** v1 + v2 shipped. The Rust hub (CLI + daemon + SQLite index + watcher), the full HTTP API + SSE event stream, both host adapters (Claude Code and opencode), the dependency-graph scheduler, a minimum-viable web UI, and an agent-prompt eval framework are all in place. ~270 tests pass on `cargo test`. There is no crates.io release yet; build from source per [Installation](#installation).
 
 ## What Dwarven is
 
@@ -12,8 +12,8 @@ Four pillars:
 
 - **Mechanism-enforced decoupling.** Every agent is a host-native subagent with isolated context and a granular tool allowlist. Drift between roles is prevented at the mechanism layer, not by prompt discipline.
 - **Local coordination hub.** A single-binary daemon owns the workflow state. Issues, comments, dependencies, and state transitions live as Markdown files in your repo (`.dwarven/`); a SQLite index serves a local web UI. No GitHub dependency.
-- **Dependency-aware scheduling (v2).** Priorities reflect both your product priorities *and* each issue's downstream-unblocking value. Working on a `p1` that unblocks five `p0`s outranks a `p1` that unblocks nothing.
-- **Multi-host.** A thin per-host adapter materializes the agent roster onto each supported AI coding-agent CLI. v1 ships the Claude Code adapter; v3 adds opencode.
+- **Dependency-aware scheduling.** Priorities reflect both your product priorities *and* each issue's downstream-unblocking value. Working on a `p1` that unblocks five `p0`s outranks a `p1` that unblocks nothing.
+- **Multi-host.** A thin per-host adapter materializes the agent roster onto each supported AI coding-agent CLI. Claude Code and opencode are both supported; the contract is published so other hosts can be added.
 
 ## Core ideas
 
@@ -35,18 +35,18 @@ Four pillars:
 
 ## The agent roster
 
-| Agent | Slash command | Scope |
+| Agent | Dispatch | Scope |
 |---|---|---|
-| **Spec** | `/spec` | Evolves `docs/specs/*.md`. What the system should do. |
-| **Architect** | `/architect` | Designs `docs/architecture/*.md`. How the system should solve the spec. |
-| **Gap** | `/gap` | Compares spec vs. docs/code; files gap issues. |
-| **PM** | `/pm` | Decomposes top-level gap issues into implementable child issues. |
-| **Planning** | `/plan` | Produces `docs/plans/YYYY-MM-DD-<slug>.md` for one issue. |
-| **Test Dev** | `/test` | Writes failing tests from plan + spec. Test paths only. |
-| **Implementation** | `/implement` | Drives failing tests to green. RED-GREEN-REFACTOR. |
-| **Code Review** | `/review` | Reviews diff against plan + spec; merges or routes back. |
-| **Doc** | `/doc` | Updates `docs/*.md` to reflect actual code behavior. |
-| **Triage** | `/triage` | Audits issue queue; surfaces stuck work. |
+| **Spec** | `/spec` (Claude Code) / `@spec` (opencode) | Evolves `docs/specs/*.md`. What the system should do. |
+| **Architect** | `/architect` / `@architect` | Designs `docs/architecture/*.md`. How the system should solve the spec. |
+| **Gap** | `/gap` / `@gap` | Compares spec vs. docs/code; files gap issues. |
+| **PM** | `/pm` / `@pm` | Decomposes top-level gap issues into implementable child issues. |
+| **Planning** | `/plan` / `@plan` | Produces `docs/plans/YYYY-MM-DD-<slug>.md` for one issue. |
+| **Test Dev** | `/test` / `@test` | Writes failing tests from plan + spec. Test paths only. |
+| **Implementation** | `/implement` / `@implement` | Drives failing tests to green. RED-GREEN-REFACTOR. |
+| **Code Review** | `/review` / `@review` | Reviews diff against plan + spec; merges or routes back. |
+| **Doc** | `/doc` / `@doc` | Updates `docs/*.md` to reflect actual code behavior. |
+| **Triage** | `/triage` / `@triage` | Audits issue queue; surfaces stuck work. |
 
 Each agent's full I/O contract — trigger, inputs, outputs, tool allowlist, exit conditions, and scope fences — is specified in [`docs/specs/agent-roster.md`](docs/specs/agent-roster.md).
 
@@ -72,15 +72,15 @@ Code Review → merges branch into main, transitions to state:doc
 Doc         → updates docs/*.md, appends CHANGELOG, closes issue
 ```
 
-At any step, an agent that hits an unresolvable ambiguity escalates: structured comment + `blocker:maintainer-input` + transition to `state:maintainer` + exit. The maintainer responds via the web UI; the next dispatch picks up from there.
+At any step, an agent that hits an unresolvable ambiguity escalates: structured comment + `blocker: maintainer-input` + transition to `state: maintainer` + exit. The maintainer responds via the web UI or CLI; the next dispatch picks up from there.
 
 ## The maintainer shell
 
-You interact with Dwarven through a top-level session in your AI coding-agent host (Claude Code in v1) called the **shell**. The shell is intentionally thin:
+You interact with Dwarven through a top-level session in your AI coding-agent host (Claude Code, opencode) called the **shell**. The shell is intentionally thin:
 
-- **It can read.** Files, `git log`, `dwarven issue view`, `dwarven issue list` — anything to orient.
+- **It can read.** Files, `git log`, `dwarven issue view`, `dwarven issue list`, `dwarven schedule next` — anything to orient.
 - **It cannot write.** Every action that changes state is dispatched to an agent.
-- **It dispatches via slash commands.** `/spec`, `/architect`, `/plan 42`, etc. There is no inferred routing — you always name the agent.
+- **It dispatches by name.** `/spec`, `/plan 42`, etc. under Claude Code; `@spec`, `@plan 42` under opencode. There is no inferred routing.
 - **It does not converse multi-turn about work.** Dialogue happens inside dispatched agents, not in the shell.
 
 The shell holds broad context but no specific work. Putting writes in the shell would erode the per-agent decoupling guarantee.
@@ -89,8 +89,8 @@ The shell holds broad context but no specific work. Putting writes in the shell 
 
 Subagents are one-shot — they cannot converse with you across invocations. Two communication paths:
 
-- **Interactive dispatch** (from the shell): the subagent uses the host's interactive question primitive (Claude Code's `AskUserQuestion`) to clarify mid-run, then completes.
-- **Detached dispatch**: the subagent posts a structured comment to the hub, sets `blocker:maintainer-input`, transitions to `state:maintainer`, and exits. You answer via the web UI; the next dispatch reads the new state.
+- **Interactive dispatch** (from the shell): the subagent uses the host's interactive question primitive (Claude Code's `AskUserQuestion`; opencode's free-text `question`) to clarify mid-run, then completes.
+- **Detached dispatch**: the subagent posts a structured comment to the hub, sets `blocker: maintainer-input`, transitions to `state: maintainer`, and exits. You answer via the web UI; the next dispatch reads the new state.
 
 The interactive primitive is allowlisted only on dialogue agents (Spec, Architect, Gap, PM, Planning). Discrete-work agents (Test Dev, Implementation, Code Review, Doc, Triage) escalate structurally — never synchronously.
 
@@ -99,34 +99,103 @@ The interactive primitive is allowlisted only on dialogue agents (Spec, Architec
 The hub is a single-binary Rust daemon that owns the workflow state. It has two execution modes:
 
 - **CLI mode** — `dwarven <subcommand>`. One-shot operations: create an issue, post a comment, transition state, manage dependencies. CLI mode reads and writes `.dwarven/` files directly; no daemon required.
-- **Daemon mode** — `dwarven serve`. Runs an HTTP server (default `127.0.0.1:7777`) that backs the local web UI, plus a file watcher that keeps the SQLite index in sync. Required only for the web UI.
+- **Daemon mode** — `dwarven serve`. Runs an HTTP server (default `127.0.0.1:7777`) that backs the local web UI, plus a file watcher that keeps the SQLite index in sync. Required only for the web UI and the SSE event stream.
 
 Hub artifacts (issues, comments, state transitions, dependency edges) live as Markdown files with frontmatter under `.dwarven/`, committed alongside code. The SQLite index is derived and reproducible from the files at any time. You can hand-edit any artifact in your editor as an escape hatch.
 
-Agents talk to the hub *exclusively* through the `dwarven` CLI. Per-agent allowlists scope CLI invocations granularly (e.g., the Spec agent has `Bash(dwarven --actor spec issue close:*)` but not `dwarven issue create:*`).
+Agents talk to the hub *exclusively* through the `dwarven` CLI. Per-agent allowlists scope CLI invocations granularly (e.g., the Spec agent has `dwarven --actor spec issue close:*` allowed but not `dwarven issue create:*`).
 
 ## Dependency-aware prioritization
 
-(v2 deliverable.) The hub stores dependency edges between issues — "A blocks B" relationships that form a DAG. The scheduler computes an *effective priority* for each active issue:
+The hub stores dependency edges between issues — "A blocks B" relationships that form a DAG. The scheduler computes an *effective priority* for each active issue:
 
 ```
-score(i) = base_priority(i) + α · Σ score(j) for j blocked by i
+score(i) = base_priority(i) + α · Σ score(j) for j ∈ blocks(i)
 ```
 
 Higher `α` makes downstream-unblocking value matter more; lower `α` makes immediate base priority dominate. Default `α = 0.5`.
 
-You can override the computed score per issue (the "I know better than the algorithm" escape hatch). Edge creation is restricted to upstream agents (Architect, PM, Planning) and you; downstream agents escalate to record edges they discover.
+You can override the computed score per issue (`dwarven issue priority-override <id> <value>`) — the "I know better than the algorithm" escape hatch. Edge creation is restricted to upstream agents (Architect, PM, Planning) and you; downstream agents escalate to record edges they discover.
 
-Full algorithm and tunables: [`docs/specs/dep-graph.md`](docs/specs/dep-graph.md).
+Full algorithm: [`docs/specs/dep-graph.md`](docs/specs/dep-graph.md). Implementation notes: [`docs/architecture/scheduler.md`](docs/architecture/scheduler.md).
 
 ## Hosts
 
 Dwarven targets multiple AI coding-agent hosts via thin per-host adapters. Each adapter materializes the abstract agent roster ([`docs/specs/agent-roster.md`](docs/specs/agent-roster.md)) into the host's native primitives.
 
-- **Claude Code** — v1 reference adapter. Maps agents to `.claude/agents/`, slash commands to `.claude/commands/`, hooks to `.claude/hooks/`, settings to `.claude/settings.json`.
-- **opencode** — v3 deliverable. Adapter contract is sketched in [`docs/specs/host-adapter.md`](docs/specs/host-adapter.md); open questions to resolve in v3.
+- **Claude Code** — reference adapter. Maps agents to `.claude/agents/`, slash commands to `.claude/commands/`, hooks to `.claude/hooks/`, settings to `.claude/settings.json`. Universal-deny enforced both via per-agent allowlists and a PreToolUse hook as a second line of defense.
+- **opencode** — second adapter. Maps agents to `.opencode/agents/`, the orientation copy to `.opencode/AGENTS.md`, and the universal-deny floor to `opencode.json` at the repo root. No PreToolUse hook (opencode has no hooks system); the adapter validates at `dwarven init` time that no per-agent allow pattern shadows a global deny.
 
-A repository may install multiple adapters simultaneously; each writes to its own host-specific directory and you choose which host to launch.
+The two adapters share no on-disk artifacts. A repository may install both adapters simultaneously; each writes to its own host-specific directory; you choose which host to launch.
+
+Full contract: [`docs/specs/host-adapter.md`](docs/specs/host-adapter.md).
+
+## Agent-prompt evals
+
+Substantive changes to an agent's behavioral framing (Red Flags tables, anti-rationalization language, scope-fence prose) need eval evidence before they ship. The framework lives at [`docs/architecture/agent-eval.md`](docs/architecture/agent-eval.md); scenarios under `evals/<agent>/*.yaml`; runner via `cargo run --example eval-runner -- --agent <name>`. Refuses to run without `ANTHROPIC_API_KEY`. Scenarios assert on tool-call patterns (required + forbidden) plus an optional LLM judge for response text.
+
+## Installation
+
+There is no crates.io release yet. Build from source:
+
+```bash
+git clone https://github.com/danieltoone/dwarven ~/path/to/dwarven
+cd ~/path/to/dwarven
+cargo install --path .
+```
+
+In your project repository:
+
+```bash
+# Initialize hub state and materialize the Claude Code adapter:
+dwarven init --host claude-code
+
+# Or opencode:
+dwarven init --host opencode
+
+# Or both:
+dwarven init --host claude-code --host opencode
+
+# Start the daemon (foreground; `&` to detach):
+dwarven serve
+
+# Open the web UI:
+open http://127.0.0.1:7777
+```
+
+A walkthrough of filing your first issue and dispatching the first agent lives at [`docs/getting-started.md`](docs/getting-started.md) (in progress).
+
+## Repository layout
+
+Once `dwarven init` has run, your repository contains:
+
+```
+.dwarven/                       # hub-tracked artifacts (committed)
+├── config.toml                 # per-repo configuration
+├── issues/<padded-id>/         # one directory per issue
+│   ├── issue.md                # frontmatter + body
+│   └── comments/               # state-change + free-form comments
+├── .index.sqlite               # derived; gitignored
+└── .daemon.pid                 # daemon lifecycle; gitignored
+
+docs/
+├── specs/                      # what the system should do
+├── architecture/               # how the system should solve it
+├── plans/                      # implementation plans, one per slice
+└── CHANGELOG.md
+
+.claude/                        # Claude Code adapter materialization
+├── agents/<name>.md            # one subagent per dispatched agent
+├── commands/<name>.md          # one slash command per agent
+├── hooks/{session-start,pre-tool-use}.sh
+└── settings.json
+
+.opencode/                      # opencode adapter materialization
+├── agents/<name>.md            # one subagent per dispatched agent (mode: subagent)
+└── AGENTS.md                   # orientation copy auto-loaded at session start
+
+opencode.json                   # opencode adapter global permission floor (root-level)
+```
 
 ## Spec versioning
 
@@ -134,39 +203,29 @@ Specs live flat at `docs/specs/*.md`. The top-level spec ([`docs/specs/dwarven.m
 
 `docs/CHANGELOG.md` tracks all changes from v2.0.0 forward. On the first breaking spec change after v2.0.0, existing specs migrate to `docs/specs/v2/` and the new major version goes to `docs/specs/v3/`. The migration is a `git mv`; tooling is deferred until v3 actually exists.
 
-## Repository setup
+## What's shipped
 
-`dwarven init [--host <h>]` scaffolds a repository to use Dwarven:
-
-- Creates `.dwarven/` (`config.toml`, `issues/`, gitignore for the SQLite index)
-- Creates `docs/specs/`, `docs/architecture/`, `docs/plans/`, `docs/CHANGELOG.md`
-- Materializes the chosen host adapter (e.g., `--host claude-code` writes `.claude/agents/`, `.claude/commands/`, hooks, settings)
-
-Idempotent within an adapter. Retrofit-safe: detects existing host-specific files, merges non-destructively, and prints a diff requiring confirmation before any write that modifies maintainer content.
-
-Multi-host installs are supported (`dwarven init --host claude-code --host opencode` once both adapters exist).
-
-## Installation
-
-Dwarven is **not yet published**. The Rust binary is in development. To follow along:
-
-```bash
-git clone <this-repo> ~/path/to/dwarven
-# Once the binary is buildable: `cargo install --path .` (or similar)
-# Then in your project: `dwarven init --host claude-code`
-```
-
-## Status
-
-| Area | State |
+| Surface | State |
 |---|---|
-| v2 specs (`docs/specs/*.md`) | All 10 constituent specs drafted (top-level + storage + work-states + coordination-hub + CLI + web-api + web-ui + dialogue + agent-roster + host-adapter + dep-graph). Three spec amendments shipped from implementation. |
-| `dwarven` Rust binary | **Shipped** (CLI + daemon + SQLite index + watcher). |
-| HTTP API + SSE | **Shipped.** Full web-api.md surface. |
-| Claude Code adapter | **Shipped.** `dwarven init --host claude-code` materializes 23 files into `.claude/`. |
-| Dep-graph scheduler (v2) | **Shipped.** Scheduler core, CLI, HTTP, web UI screen. |
-| Web UI | **Minimum viable shipped.** Inbox / Issues / Issue detail / Schedule / Daemon screens with SSE-driven real-time updates. Full mutation UI on detail screen + Dependencies graph view + Config screen are deferred. |
-| opencode adapter | v3. |
+| `dwarven` CLI | All `R6.x` subcommands per [`docs/specs/dwarven-cli.md`](docs/specs/dwarven-cli.md) (`init`, `issue {create,view,list,transition,comment,close,blocker {set,clear},priority,priority-override,edit,dep {add,remove}}`, `serve`, `daemon {status,stop,restart}`, `reindex`, `config {get,set}`, `schedule next`). |
+| Daemon | PID-locked single-instance per repo, signal handling, file watcher with debounced reindex, periodic reconciliation, SQLite integrity + schema-version probe at startup. |
+| HTTP API | Full surface per [`docs/specs/web-api.md`](docs/specs/web-api.md) — issues, comments, transitions, blocker, priority, dependencies, daemon, config, scheduler endpoints + SSE event stream at `/api/v1/events` with `Last-Event-ID` replay. |
+| Web UI | Inbox, Issues list with URL-state filter persistence, Issue detail with full mutation UI, Dependencies graph (hand-rolled SVG, focus + N-hop + epic-clustered), Schedule with override controls, Daemon ops, Config form. Real-time updates via SSE. |
+| Claude Code adapter | `dwarven init --host claude-code` materializes 23 files into `.claude/`. |
+| opencode adapter | `dwarven init --host opencode` materializes 13 files into `.opencode/` + `opencode.json` at root. Materialize-time R13 shadow validation. |
+| Dep-graph scheduler | `score(i) = base + α · Σ score(blocks)`, DFS-with-memo, cycle detection. CLI: `dwarven schedule next`. HTTP: `GET /api/v1/scheduler/queue`. |
+| Eval framework | YAML scenarios, mock-tool runner, Anthropic API tool-use loop, optional LLM-judge. `cargo run --example eval-runner`. |
+| Tests | ~270 tests, all green. `cargo test` runs in ~10s. |
+
+## Documentation
+
+- **For new users:** [`docs/getting-started.md`](docs/getting-started.md) (in progress) — quickstart walkthrough.
+- **For everyday use:** [`docs/cli-reference.md`](docs/cli-reference.md) (in progress) — every subcommand + flag + example. [`docs/configuration.md`](docs/configuration.md) (in progress) — every config.toml key.
+- **For integrations:** [`docs/http-api-reference.md`](docs/http-api-reference.md) (in progress) — endpoint catalog with examples.
+- **For the maintainer:** [`docs/web-ui.md`](docs/web-ui.md) (in progress) — web UI walkthrough. [`docs/troubleshooting.md`](docs/troubleshooting.md) (in progress) — common issues and recovery.
+- **Specifications** under [`docs/specs/`](docs/specs/) — what the system should do.
+- **Architecture** under [`docs/architecture/`](docs/architecture/) — how the system actually solves it.
+- **In-session context** in [`CLAUDE.md`](CLAUDE.md) — used by Claude Code; load-bearing project context.
 
 ## Philosophy
 

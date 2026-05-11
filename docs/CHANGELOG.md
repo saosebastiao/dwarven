@@ -8,6 +8,15 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ## [Unreleased]
 
+### Changed
+
+- README rewritten to reflect v1+v2 shipped state. Status callout now
+  describes the actual shipped surface (CLI, daemon, HTTP API, SSE,
+  both host adapters, scheduler, web UI, eval framework, ~270 tests)
+  rather than "implementation pending." Hosts section updated to
+  document both adapters as shipped. Repository layout, what's-shipped
+  table, and documentation link map added. (#11)
+
 ### Added
 
 - opencode adapter: `dwarven init --host opencode` materializes
