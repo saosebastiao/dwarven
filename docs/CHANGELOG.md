@@ -10,6 +10,14 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- `docs/http-api-reference.md`: endpoint catalog for the local
+  coordination hub HTTP API. Conventions (base URL, error envelope,
+  actor attribution) up top, then sections per resource: daemon
+  (status/shutdown/reindex), issues (list/create/view/edit + comments,
+  transitions, blocker, priority), dependencies, scheduler (queue,
+  override), config, and SSE events with the full event vocabulary
+  and Last-Event-ID replay protocol. Plus two recipe blocks
+  (pipeline walk via curl + event tailing). (#15)
 - `docs/configuration.md`: `.dwarven/config.toml` reference. Section-
   by-section: `[repo]`, `[counters]`, `[daemon]`, `[scheduler]` with
   `[scheduler.priority_weights]` sub-table, `[triage]`. Each key with

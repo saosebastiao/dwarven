@@ -2,12 +2,12 @@
 id: 15
 title: 'docs/http-api-reference.md: endpoint catalog with examples'
 type: doc
-state: doc
+state: done
 priority: p1
 epic: user-docs
 created: 2026-05-11T05:16:39Z
 created_by: maintainer
-updated: 2026-05-11T05:16:39Z
+updated: 2026-05-11T05:24:32Z
 ---
 User-facing HTTP API reference. The spec (web-api.md) defines the contract; this doc gives endpoint-by-endpoint examples with realistic request/response payloads (curl-style).
 
