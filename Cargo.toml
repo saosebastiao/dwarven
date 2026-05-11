@@ -17,6 +17,7 @@ axum = "0.7"
 chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
 clap = { version = "4.5", features = ["derive"] }
 fs2 = "0.4"
+globset = "0.4"
 nix = { version = "0.29", features = ["signal"] }
 notify = "6"
 rusqlite = { version = "0.32", features = ["bundled"] }
@@ -34,6 +35,7 @@ uuid = { version = "1.10", features = ["v4"] }
 [dev-dependencies]
 assert_cmd = "2.0"
 predicates = "3.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 tempfile = "3.10"
 ureq = { version = "2", features = ["json"] }

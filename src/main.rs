@@ -7,6 +7,7 @@ mod adapter;
 mod api;
 mod config;
 mod daemon;
+mod eval;
 mod index;
 mod init;
 mod issue;
