@@ -10,6 +10,13 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- `docs/architecture/overview.md`: orientation doc for new
+  contributors. Build targets, one-paragraph-per-module summaries,
+  cross-cutting invariants (files-of-record, single-writer SQLite,
+  atomic-write-via-rename, advisory lock, single-daemon-per-repo,
+  actor attribution), data flow diagrams for CLI and HTTP mutations,
+  spec-to-code mapping table, and a reading order. Forward-links to
+  the other architecture docs. (#18)
 - `docs/troubleshooting.md`: symptom → cause → fix reference for
   common failures. Sections: daemon (stale PID, port-in-use, web UI
   "connecting…"), CLI (illegal transition, dep cycle, index drift,
