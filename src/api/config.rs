@@ -1,3 +1,12 @@
+//! `GET` / `PATCH /api/v1/config` handlers.
+//!
+//! `GET` returns the validated config as JSON. `PATCH` accepts a
+//! partial update; missing keys are unchanged. Restart-required keys
+//! (`daemon.port`) are accepted into the file but the running daemon
+//! continues on the old value until restart — see
+//! [`docs/configuration.md`](../../../docs/configuration.md) for the
+//! flag table.
+
 use std::fs;
 
 use axum::Json;

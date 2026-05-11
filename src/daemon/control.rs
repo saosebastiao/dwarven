@@ -1,3 +1,13 @@
+//! `dwarven daemon {status,stop,restart}` business logic.
+//!
+//! - `run_status` reports whether a daemon is currently running by
+//!   inspecting the PID lock file and probing the process.
+//! - `run_stop` sends SIGTERM to the recorded PID and polls for
+//!   `pidfile-absence` as the "exited cleanly" signal (chosen over
+//!   `kill(pid, 0)` because the latter reports zombies as alive under
+//!   cargo test's spawn-without-wait pattern).
+//! - `run_restart` stops (if running) then `serve`s in the foreground.
+
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 

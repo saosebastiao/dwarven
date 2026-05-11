@@ -1,3 +1,12 @@
+//! PID file + advisory-lock primitives used by [`crate::daemon::serve`]
+//! and [`crate::daemon::control`].
+//!
+//! The PID file lives at `.dwarven/.daemon.pid`. Its presence is the
+//! "a daemon owns this repo" signal; its absence (after clean shutdown)
+//! is the "no daemon is running" signal. Distinguishing "pidfile
+//! present but process gone" (a crashed daemon) from "pidfile present
+//! and live" is the job of [`is_pid_alive`] / [`probe`].
+
 use std::fs;
 use std::path::Path;
 

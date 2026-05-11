@@ -10,6 +10,13 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- Rustdoc coverage for the API and daemon modules. Module-level `//!`
+  headers on `api/{mod,server,state,error,types,events,issues,config,daemon_ops}.rs`
+  and `daemon/{mod,serve,control,pidfile,watcher}.rs`. Existing
+  substantive `//!` on `api/mutations.rs`, `api/scheduler.rs`,
+  `api/web.rs`, and `daemon/config.rs` preserved. The events module
+  explains the `Last-Event-ID` replay protocol; the serve module
+  documents the strict 9-step startup sequence. Build clean. (#23)
 - Rustdoc coverage for the issue verbs and the adapter modules.
   Module-level `//!` headers on `src/issue/mod.rs` and each of the
   eleven verb modules (`create`, `view`, `list`, `transition`, `close`,

@@ -1,3 +1,15 @@
+//! HTTP error envelope per `web-api.md#R3.2`.
+//!
+//! Every non-2xx response serializes to:
+//! ```json
+//! {"error": "<code>", "message": "<human>", "details": null}
+//! ```
+//!
+//! The status code is set via the [`IntoResponse`] impl; the `error`
+//! code field is a stable machine-readable string. Constructors:
+//! [`ApiError::bad_request`] (400), [`ApiError::not_found`] (404),
+//! [`ApiError::hub_error`] (500).
+
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};

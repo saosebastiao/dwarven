@@ -1,3 +1,22 @@
+//! SSE event stream + `Last-Event-ID` replay.
+//!
+//! [`EventBus`] owns a `tokio::sync::broadcast` channel for live
+//! delivery, a 256-entry [`VecDeque`] ring buffer for short-window
+//! replay, and an [`AtomicU64`] monotonic sequence counter.
+//!
+//! Emitters: each HTTP mutation handler calls [`EventBus::emit`] after
+//! a successful mutation; the file watcher calls it with
+//! [`EventKind::DaemonReindexed`] after each reindex.
+//!
+//! Subscribers: [`sse_handler`] is the GET `/api/v1/events` endpoint.
+//! On reconnect with a `Last-Event-ID` header, it replays missed
+//! events from the ring buffer before attaching to the live stream.
+//! If the requested id is older than the ring's oldest entry, it emits
+//! a single `stream.refresh-required` event so the client knows to
+//! refetch state instead of trusting an incomplete tail.
+//!
+//! Architecture: [`docs/architecture/event-stream.md`](../../../docs/architecture/event-stream.md).
+
 use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::sync::Arc;

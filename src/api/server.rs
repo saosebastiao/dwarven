@@ -1,3 +1,10 @@
+//! axum router construction and HTTP server lifecycle.
+//!
+//! [`router`] assembles all routes; [`spawn`] binds the socket on the
+//! daemon's chosen port and runs the server on a dedicated thread,
+//! signaling readiness or bind error via a oneshot channel so the
+//! caller can fail fast on port conflicts.
+
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};

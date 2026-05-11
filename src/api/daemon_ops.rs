@@ -1,3 +1,10 @@
+//! Daemon admin endpoints: shutdown + reindex.
+//!
+//! `POST /api/v1/daemon/shutdown` flips the shared shutdown flag; the
+//! `serve` loop notices and exits cleanly. `POST /api/v1/daemon/reindex`
+//! drops and rebuilds the SQLite index in-process so the watcher and
+//! the request see a consistent view.
+
 use std::sync::atomic::Ordering;
 
 use axum::Json;

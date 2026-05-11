@@ -1,3 +1,11 @@
+//! JSON DTOs for the HTTP API.
+//!
+//! These mirror the on-disk frontmatter structs ([`IssueFrontmatter`],
+//! [`crate::storage::comment_file::CommentFrontmatter`]) but serialize
+//! to the JSON shape the web UI and external clients expect. Decoupling
+//! the wire DTOs from the storage structs lets either evolve
+//! independently within the limits of the HTTP API spec.
+
 use serde::Serialize;
 
 use crate::storage::comment_file::CommentFile;

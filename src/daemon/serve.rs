@@ -1,3 +1,24 @@
+//! `dwarven serve` orchestration.
+//!
+//! The single long-running entry point. Performs the startup sequence
+//! in a strict order:
+//!
+//! 1. Validate `.dwarven/config.toml` ([`crate::daemon::config::read_full_config`]).
+//!    Fail fast on malformed values **before** any side effects.
+//! 2. Acquire the PID lock on `.dwarven/.daemon.pid`. Fail if another
+//!    daemon holds it.
+//! 3. Install signal handlers for SIGTERM / SIGINT / SIGHUP. Under
+//!    cargo test's inherited mask, `sigprocmask` unblocks the relevant
+//!    signals so the handler actually fires.
+//! 4. Probe the existing index health (observability only).
+//! 5. Unconditionally rebuild the SQLite index from files.
+//! 6. Bind the HTTP server (oneshot ready signal so port-in-use fails
+//!    cleanly).
+//! 7. Spawn the file watcher.
+//! 8. Block on the shutdown flag.
+//! 9. Clean shutdown: signal handlers off, watcher join, HTTP server
+//!    drain, PID file removed.
+
 use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;

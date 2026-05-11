@@ -1,3 +1,9 @@
+//! Shared application state for axum handlers.
+//!
+//! [`AppState`] is wrapped in `Arc` and cloned into every handler via
+//! axum's `State` extractor. Holds the repo paths, the event bus, the
+//! shutdown flag, and the startup timestamp.
+
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;

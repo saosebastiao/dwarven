@@ -1,3 +1,20 @@
+//! File watcher: debounces filesystem events into reindex operations.
+//!
+//! [`run`] is the long-running loop, called from a dedicated thread in
+//! [`crate::daemon::serve`]. It uses the `notify` crate for FS events,
+//! debounces a burst into a single reindex, runs a periodic
+//! reconciliation pass (default 60s, configurable via
+//! `daemon.reconciliation_interval_seconds`), and emits
+//! [`crate::api::events::EventKind::DaemonReindexed`] after each
+//! rebuild.
+//!
+//! The reconciliation pass is a defense against missed inotify events
+//! (some editors write in patterns that don't trigger reliably). It is
+//! semantically a no-op when there is nothing to reindex.
+//!
+//! The reconciliation interval is re-read per loop iteration so a
+//! config change is picked up live, no daemon restart needed.
+
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};

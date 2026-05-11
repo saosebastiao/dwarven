@@ -1,3 +1,10 @@
+//! Read-side issue endpoints: list, view, comment-thread.
+//!
+//! Mutations live in [`crate::api::mutations`]. These handlers walk
+//! `.dwarven/issues/` directly rather than going through SQLite — the
+//! daemon's index is used by the watcher / scheduler only; HTTP reads
+//! are file-system reads. (`coordination-hub.md#R8.5`.)
+
 use axum::Json;
 use axum::extract::{Path, Query, State};
 use serde::Deserialize;
