@@ -543,18 +543,20 @@ function wireIssueActions(id, issue) {
 
 // ---------- Dependencies graph (web-ui.md#R7) ----------
 
+// Agent / state colors — tuned for the parchment palette: mid-saturation
+// values that stay distinct as small filled nodes on a light background.
 const STATE_COLORS = {
-    spec: "#6cb6ff",
-    architect: "#aa80ff",
-    pm: "#ff80c0",
-    plan: "#f0a060",
-    test: "#f0d060",
-    implement: "#80c080",
-    review: "#60c0c0",
-    doc: "#c0a0e0",
-    maintainer: "#f06060",
-    done: "#666",
-    dropped: "#444",
+    spec:       "#2a5fa5",  // ithildin blue
+    architect:  "#7050a0",  // deep amethyst
+    pm:         "#a04a78",  // rose-quartz
+    plan:       "#9c6a30",  // bronze
+    test:       "#9a8430",  // deep parchment-gold
+    implement:  "#5a7a3a",  // lichen
+    review:     "#3a7065",  // patina copper
+    doc:        "#8a5a8a",  // pale amethyst (deep)
+    maintainer: "#c25a18",  // forge ember
+    done:       "#7a6f5a",  // worn stone
+    dropped:    "#a89c80",  // faded shadow
 };
 
 const PRIORITY_RADIUS = { p0: 22, p1: 17, p2: 13 };

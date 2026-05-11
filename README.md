@@ -1,4 +1,10 @@
-# Dwarven
+<p align="center">
+  <img src="assets/dwarven-logo.svg" alt="Dwarven" width="160">
+</p>
+
+<h1 align="center">Dwarven</h1>
+
+<p align="center"><em>Halls of stone for software, dug deep and well-measured.</em></p>
 
 A host-agnostic system for **specification-driven software development** with **strongly decoupled agents** and a **local coordination hub**.
 

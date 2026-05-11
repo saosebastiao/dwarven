@@ -1,5 +1,5 @@
 //! Embedded web-UI assets per `coordination-hub.md#R5.2` and
-//! `web-ui.md#R2.1`. Three static files compiled into the binary; an SPA
+//! `web-ui.md#R2.1`. Static files compiled into the binary; an SPA
 //! fallback serves index.html for any non-API path so client-side
 //! deep links work.
 
@@ -11,6 +11,8 @@ use axum::response::Response;
 const INDEX_HTML: &str = include_str!("../../assets/web/index.html");
 const APP_JS: &str = include_str!("../../assets/web/app.js");
 const APP_CSS: &str = include_str!("../../assets/web/app.css");
+const LOGO_SVG: &str = include_str!("../../assets/dwarven-logo.svg");
+const FAVICON_SVG: &str = include_str!("../../assets/favicon.svg");
 
 pub async fn index() -> Response<Body> {
     static_response(INDEX_HTML, "text/html; charset=utf-8")
@@ -22,6 +24,14 @@ pub async fn app_js() -> Response<Body> {
 
 pub async fn app_css() -> Response<Body> {
     static_response(APP_CSS, "text/css; charset=utf-8")
+}
+
+pub async fn logo_svg() -> Response<Body> {
+    static_response(LOGO_SVG, "image/svg+xml")
+}
+
+pub async fn favicon_svg() -> Response<Body> {
+    static_response(FAVICON_SVG, "image/svg+xml")
 }
 
 /// Fallback handler. Paths under `/api/` return 404 so we don't paper

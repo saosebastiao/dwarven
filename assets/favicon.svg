@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Parchment tile -->
+  <rect width="64" height="64" fill="#f4ede0" rx="6"/>
+
+  <!-- Foundation -->
+  <rect x="6" y="58" width="52" height="3" fill="#a89c80"/>
+
+  <!-- Gateway silhouette: pillars + arch ring -->
+  <path d="M 10 58 L 10 36 A 22 22 0 0 1 54 36 L 54 58 L 46 58 L 46 36 A 14 14 0 0 0 18 36 L 18 58 Z"
+        fill="#2a5fa5"/>
+
+  <!-- Doorway recess (dark depth) -->
+  <path d="M 18 36 A 14 14 0 0 1 46 36 L 46 58 L 18 58 Z" fill="#1a1612"/>
+  <!-- Ithildin inner arch glow -->
+  <path d="M 18 36 A 14 14 0 0 1 46 36" fill="none" stroke="#6c95cf" stroke-width="1.2"/>
+
+  <!-- Seven stars of Durin -->
+  <g fill="#a87a1a">
+    <circle cx="6"  cy="20" r="1.6"/>
+    <circle cx="15" cy="14" r="1.6"/>
+    <circle cx="23" cy="9"  r="1.6"/>
+    <circle cx="32" cy="7"  r="2.1"/>
+    <circle cx="41" cy="9"  r="1.6"/>
+    <circle cx="49" cy="14" r="1.6"/>
+    <circle cx="58" cy="20" r="1.6"/>
+  </g>
+</svg>

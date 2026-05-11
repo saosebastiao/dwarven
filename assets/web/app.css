@@ -1,13 +1,26 @@
+/* ── Dwarven palette — Parchment / Dwarvish Map ─────────────────────── */
 :root {
-    --fg: #e6e6e6;
-    --bg: #1a1a1a;
-    --bg-alt: #232323;
-    --border: #333;
-    --accent: #6cb6ff;
-    --muted: #999;
-    --warn: #f0a060;
-    --bad: #f06060;
-    --ok: #80c080;
+    /* Parchment (background tones) */
+    --bg:        #f4ede0;
+    --bg-alt:    #ebe3d3;
+    --bg-deep:   #fbf6ec;
+    --border:    #c9bea8;
+    --border-strong: #a89c80;
+
+    /* Ink + muted */
+    --fg:        #2a241c;
+    --muted:     #7a6f5a;
+
+    /* Ithildin blue (primary accent — replaces mithril, which doesn't read on parchment) */
+    --accent:        #2a5fa5;
+    --accent-bright: #1f4a85;
+    --ithildin:      #6c95cf;
+
+    /* Heat (Erebor gold, forge ember) */
+    --gold:      #a87a1a;
+    --warn:      #c25a18;
+    --bad:       #a83030;
+    --ok:        #5a7a3a;
 }
 
 * {
@@ -16,36 +29,84 @@
 
 body {
     margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", monospace;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background: var(--bg);
     color: var(--fg);
     font-size: 14px;
     line-height: 1.5;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Header / brand ─────────────────────────────────────────────────── */
 header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0.5rem 1rem;
-    background: var(--bg-alt);
-    border-bottom: 1px solid var(--border);
+    background: linear-gradient(180deg, var(--bg-deep) 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border-strong);
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    text-decoration: none;
+    color: var(--fg);
+    margin-right: 1.25rem;
+}
+
+.brand-mark {
+    width: 32px;
+    height: 32px;
+    flex: none;
+}
+
+.brand-name {
+    font-family: "Cinzel", Georgia, "Times New Roman", serif;
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent-bright);
+}
+
+header > .header-left {
+    display: flex;
+    align-items: center;
+}
+
+nav {
+    display: flex;
+    align-items: center;
 }
 
 nav a {
-    color: var(--fg);
+    color: var(--muted);
     text-decoration: none;
     margin-right: 1rem;
+    padding: 0.15rem 0;
+    border-bottom: 1px solid transparent;
+    transition: color 0.15s ease, border-color 0.15s ease;
+    font-weight: 500;
+}
+
+nav a:hover {
+    color: var(--fg);
 }
 
 nav a.active {
-    color: var(--accent);
-    font-weight: 600;
+    color: var(--accent-bright);
+    border-bottom-color: var(--ithildin);
 }
 
 .status {
     font-size: 0.8rem;
     color: var(--muted);
+    font-variant: small-caps;
+    letter-spacing: 0.05em;
 }
 
 .status.connected {
@@ -56,14 +117,20 @@ nav a.active {
     color: var(--warn);
 }
 
+.status.connected::before,
+.status.disconnected::before {
+    content: "●";
+    margin-right: 0.3em;
+}
+
 .badge {
     display: inline-block;
-    background: var(--warn);
-    color: var(--bg);
+    background: var(--gold);
+    color: var(--bg-deep);
     border-radius: 10px;
     padding: 0 6px;
     font-size: 0.7rem;
-    font-weight: 600;
+    font-weight: 700;
     margin-left: 4px;
 }
 
@@ -72,11 +139,22 @@ nav a.active {
 }
 
 main {
-    padding: 1rem;
+    padding: 1.25rem 1rem 3rem;
     max-width: 1100px;
     margin: 0 auto;
 }
 
+main h1, main h2 {
+    font-family: "Cinzel", Georgia, "Times New Roman", serif;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--accent-bright);
+}
+
+main h1 { font-size: 1.45rem; }
+main h2 { font-size: 1.1rem; }
+
+/* ── Tables ─────────────────────────────────────────────────────────── */
 table {
     width: 100%;
     border-collapse: collapse;
@@ -84,44 +162,53 @@ table {
 
 th, td {
     text-align: left;
-    padding: 0.4rem 0.6rem;
+    padding: 0.45rem 0.6rem;
     border-bottom: 1px solid var(--border);
 }
 
 th {
     font-weight: 600;
     color: var(--muted);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     text-transform: uppercase;
+    letter-spacing: 0.08em;
+    border-bottom-color: var(--border-strong);
 }
 
 tr.row {
     cursor: pointer;
+    transition: background 0.1s ease;
 }
 
 tr.row:hover td {
     background: var(--bg-alt);
 }
 
+/* ── Tags / priority ────────────────────────────────────────────────── */
 .tag {
     display: inline-block;
-    padding: 1px 6px;
+    padding: 1px 7px;
     border-radius: 3px;
     background: var(--bg-alt);
     color: var(--muted);
-    font-size: 0.75rem;
-    border: 1px solid var(--border);
+    font-size: 0.72rem;
+    border: 1px solid var(--border-strong);
+    letter-spacing: 0.03em;
+    font-weight: 500;
 }
 
 .tag.priority-p0 { color: var(--bad); border-color: var(--bad); }
 .tag.priority-p1 { color: var(--warn); border-color: var(--warn); }
+.tag.priority-p2 { color: var(--gold); border-color: var(--gold); }
 
 .empty {
     color: var(--muted);
     text-align: center;
     padding: 2rem;
+    font-style: italic;
 }
 
+/* ── Detail view ────────────────────────────────────────────────────── */
 .detail h1 {
     margin: 0 0 0.5rem 0;
 }
@@ -129,13 +216,15 @@ tr.row:hover td {
 .detail .meta {
     color: var(--muted);
     margin-bottom: 1rem;
+    font-size: 0.85rem;
 }
 
 .detail .body {
-    background: var(--bg-alt);
-    padding: 0.75rem 1rem;
+    background: var(--bg-deep);
+    padding: 0.85rem 1rem;
     border-radius: 4px;
     border: 1px solid var(--border);
+    border-left: 3px solid var(--ithildin);
     white-space: pre-wrap;
     margin: 1rem 0;
 }
@@ -167,18 +256,36 @@ tr.row:hover td {
     margin: 0.25rem 0;
 }
 
+/* ── Forms / buttons ────────────────────────────────────────────────── */
 button {
-    background: var(--bg-alt);
+    background: var(--bg-deep);
     color: var(--fg);
-    border: 1px solid var(--border);
-    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--border-strong);
+    padding: 0.35rem 0.85rem;
     border-radius: 3px;
     cursor: pointer;
     font-size: 0.9rem;
+    font-family: inherit;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    transition: background 0.1s ease, border-color 0.1s ease, color 0.1s ease;
 }
 
 button:hover {
-    background: var(--border);
+    background: var(--bg-alt);
+    border-color: var(--accent);
+    color: var(--accent-bright);
+}
+
+button.primary {
+    background: var(--accent);
+    border-color: var(--accent-bright);
+    color: var(--bg-deep);
+}
+
+button.primary:hover {
+    background: var(--accent-bright);
+    color: var(--bg-deep);
 }
 
 button.danger {
@@ -186,22 +293,36 @@ button.danger {
     color: var(--bad);
 }
 
+button.danger:hover {
+    background: var(--bad);
+    color: var(--bg-deep);
+}
+
 input, textarea, select {
-    background: var(--bg);
+    background: var(--bg-deep);
     color: var(--fg);
-    border: 1px solid var(--border);
-    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--border-strong);
+    padding: 0.4rem 0.55rem;
     border-radius: 3px;
     font-family: inherit;
     font-size: 0.9rem;
     width: 100%;
 }
 
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(42, 95, 165, 0.2);
+}
+
 label {
     display: block;
-    margin: 0.5rem 0 0.25rem 0;
+    margin: 0.6rem 0 0.25rem 0;
     color: var(--muted);
-    font-size: 0.85rem;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 600;
 }
 
 .toolbar {
@@ -212,14 +333,15 @@ label {
 }
 
 .notice {
-    background: var(--bg-alt);
-    border-left: 3px solid var(--accent);
-    padding: 0.5rem 1rem;
+    background: var(--bg-deep);
+    border-left: 3px solid var(--ithildin);
+    padding: 0.6rem 1rem;
     margin: 1rem 0;
+    border-radius: 0 3px 3px 0;
 }
 
 details {
-    background: var(--bg-alt);
+    background: var(--bg-deep);
     border: 1px solid var(--border);
     border-radius: 4px;
     padding: 0.5rem 0.75rem;
@@ -231,15 +353,20 @@ details > summary {
     color: var(--accent);
     font-size: 0.9rem;
     user-select: none;
+    font-weight: 500;
 }
 
 details[open] {
     padding-bottom: 0.75rem;
 }
 
+/* ── Dependency graph ───────────────────────────────────────────────── */
 #graph-container {
     overflow: auto;
     margin: 0.5rem 0;
+    border: 1px solid var(--border-strong);
+    border-radius: 4px;
+    background: var(--bg-deep);
 }
 
 .graph-node:hover circle,
@@ -251,10 +378,31 @@ details[open] {
     color: var(--accent);
 }
 
+#graph-panel a:hover {
+    color: var(--accent-bright);
+}
+
 .epic-cluster .epic-label {
     user-select: none;
 }
 
 .epic-cluster .epic-label:hover {
     text-decoration: underline;
+}
+
+/* ── Scrollbars (webkit only — graceful fallback elsewhere) ─────────── */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: var(--bg-alt);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 5px;
+    border: 2px solid var(--bg-alt);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--border-strong);
 }

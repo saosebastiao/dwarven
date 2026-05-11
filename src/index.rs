@@ -215,6 +215,12 @@ pub fn rebuild(paths: &RepoPaths) -> Result<ReindexStats> {
     conn.pragma_update(None, "journal_mode", "DELETE")?;
 
     let tx = conn.transaction()?;
+    // Edges in `issue_blocks` can point forward — e.g. issue 4 may
+    // declare `blocks: [5]`. We insert issues in id-ascending order,
+    // so without deferral the FK check on (4 → 5) fires before row 5
+    // exists. Defer until commit, by which point every referenced
+    // issue is in place.
+    tx.execute("PRAGMA defer_foreign_keys = ON", [])?;
     for ddl in SCHEMA_DDL {
         tx.execute(ddl, [])
             .with_context(|| format!("executing DDL: {ddl}"))?;

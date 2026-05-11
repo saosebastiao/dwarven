@@ -21,6 +21,7 @@ use std::collections::VecDeque;
 use std::convert::Infallible;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
 
 use axum::extract::State;
 use axum::http::HeaderMap;
@@ -258,7 +259,33 @@ pub async fn sse_handler(
     });
 
     let combined = prefix_stream.chain(live_stream);
+
+    // Terminate the stream when the daemon's term_flag flips. Without this,
+    // `axum::serve(...).with_graceful_shutdown(...)` waits indefinitely for
+    // this connection to drain on Ctrl-C — SSE responses never finish on
+    // their own, so the server would hang until the browser closes the tab.
+    let combined = take_until_shutdown(combined, app.term_flag.clone());
+
     Sse::new(combined).keep_alive(KeepAlive::default())
+}
+
+/// Wraps `stream` so it ends once `term_flag` flips to true. `take_until`
+/// is provided by `tokio_stream::StreamExt`; calling it on the bare
+/// `Stream` is unambiguous since the futures_util extension in module
+/// scope does not define a method by that name.
+fn take_until_shutdown<S>(stream: S, term_flag: Arc<std::sync::atomic::AtomicBool>) -> impl Stream<Item = S::Item>
+where
+    S: Stream + Send + 'static,
+    S::Item: Send + 'static,
+{
+    #[allow(unused_imports)]
+    use tokio_stream::StreamExt;
+    let shutdown = async move {
+        while !term_flag.load(Ordering::Relaxed) {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    };
+    stream.take_until(shutdown)
 }
 
 fn to_sse_event(envelope: EventEnvelope) -> Result<Event, Infallible> {

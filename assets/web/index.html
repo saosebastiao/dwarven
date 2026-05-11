@@ -4,18 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dwarven</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="/app.css">
 </head>
 <body>
     <header>
-        <nav>
-            <a href="#/inbox" data-route="inbox">Inbox <span id="inbox-badge" class="badge"></span></a>
-            <a href="#/issues" data-route="issues">Issues</a>
-            <a href="#/deps" data-route="deps">Deps</a>
-            <a href="#/schedule" data-route="schedule">Schedule</a>
-            <a href="#/daemon" data-route="daemon">Daemon</a>
-            <a href="#/config" data-route="config">Config</a>
-        </nav>
+        <div class="header-left">
+            <a href="#/inbox" class="brand" aria-label="Dwarven home">
+                <img class="brand-mark" src="/logo.svg" alt="">
+                <span class="brand-name">Dwarven</span>
+            </a>
+            <nav>
+                <a href="#/inbox" data-route="inbox">Inbox <span id="inbox-badge" class="badge"></span></a>
+                <a href="#/issues" data-route="issues">Issues</a>
+                <a href="#/deps" data-route="deps">Deps</a>
+                <a href="#/schedule" data-route="schedule">Schedule</a>
+                <a href="#/daemon" data-route="daemon">Daemon</a>
+                <a href="#/config" data-route="config">Config</a>
+            </nav>
+        </div>
         <span id="connection-status" class="status">connecting…</span>
     </header>
     <main id="app"></main>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Dwarven">
+  <title>Dwarven</title>
+
+  <defs>
+    <linearGradient id="dw-stone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#d8cdb5"/>
+      <stop offset="1" stop-color="#b8a888"/>
+    </linearGradient>
+    <radialGradient id="dw-glow" cx="0.5" cy="0.95" r="0.7">
+      <stop offset="0" stop-color="#6c95cf" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#6c95cf" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Foundation slab -->
+  <rect x="16" y="220" width="224" height="8" fill="#a89c80"/>
+  <rect x="28" y="212" width="200" height="8" fill="#a89c80"/>
+
+  <!-- Pillars (left + right) -->
+  <g fill="url(#dw-stone)" stroke="#2a5fa5" stroke-width="1.5">
+    <rect x="52" y="128" width="24" height="84"/>
+    <rect x="180" y="128" width="24" height="84"/>
+    <!-- Capitals -->
+    <rect x="46" y="122" width="36" height="8"/>
+    <rect x="174" y="122" width="36" height="8"/>
+    <!-- Pillar seam -->
+    <line x1="52" y1="170" x2="76" y2="170" stroke="#a89c80" stroke-width="1"/>
+    <line x1="180" y1="170" x2="204" y2="170" stroke="#a89c80" stroke-width="1"/>
+  </g>
+
+  <!-- Arch ring (between outer r=76 and inner r=52, centered on (128,128)) -->
+  <path d="M 52 128 A 76 76 0 0 1 204 128 L 180 128 A 52 52 0 0 0 76 128 Z"
+        fill="url(#dw-stone)" stroke="#2a5fa5" stroke-width="1.5"/>
+
+  <!-- Voussoir joints — 6 lines dividing the arch into 7 stones -->
+  <g stroke="#a89c80" stroke-width="1" fill="none">
+    <line x1="81.15" y1="105.45" x2="59.50" y2="95.03"/>
+    <line x1="95.53" y1="87.35"  x2="80.54" y2="68.58"/>
+    <line x1="116.42" y1="77.31" x2="111.07" y2="53.91"/>
+    <line x1="139.58" y1="77.31" x2="144.93" y2="53.91"/>
+    <line x1="160.47" y1="87.35" x2="175.46" y2="68.58"/>
+    <line x1="174.85" y1="105.45" x2="196.50" y2="95.03"/>
+  </g>
+
+  <!-- Keystone highlight (gold) -->
+  <path d="M 111.07 53.91 L 144.93 53.91 L 139.58 77.31 L 116.42 77.31 Z"
+        fill="#f4ede0" stroke="#a87a1a" stroke-width="1.5"/>
+  <!-- Star of Durin in keystone -->
+  <g fill="#a87a1a">
+    <path d="M 128 58 L 130 64 L 135 65 L 131 69 L 132 75 L 128 72 L 124 75 L 125 69 L 121 65 L 126 64 Z"/>
+  </g>
+
+  <!-- Doorway opening (recess — kept dark so it reads as depth into the mountain) -->
+  <path d="M 76 212 L 76 128 A 52 52 0 0 1 180 128 L 180 212 Z"
+        fill="#1a1612"/>
+  <!-- Subtle ithildin moonlight settling into the recess -->
+  <path d="M 76 212 L 76 128 A 52 52 0 0 1 180 128 L 180 212 Z"
+        fill="url(#dw-glow)"/>
+
+  <!-- Inner arch outline (ithildin glow) -->
+  <path d="M 76 128 A 52 52 0 0 1 180 128"
+        fill="none" stroke="#6c95cf" stroke-width="1.2" opacity="0.95"/>
+
+  <!-- Double-door seam -->
+  <line x1="128" y1="212" x2="128" y2="80" stroke="#7a6f5a" stroke-width="1"/>
+  <!-- Door panel cross-pieces -->
+  <line x1="92" y1="160" x2="164" y2="160" stroke="#7a6f5a" stroke-width="1"/>
+  <line x1="92" y1="188" x2="164" y2="188" stroke="#7a6f5a" stroke-width="1"/>
+
+  <!-- Crown of Durin: seven stars in a shallow arc above the gateway -->
+  <g fill="#2a5fa5">
+    <path d="M 28 36 L 31 42 L 28 48 L 25 42 Z M 28 36 L 34 39 L 28 48 L 22 39 Z"/>
+    <path d="M 60 22 L 63 28 L 60 34 L 57 28 Z M 60 22 L 66 25 L 60 34 L 54 25 Z"/>
+    <path d="M 92 12 L 95 18 L 92 24 L 89 18 Z M 92 12 L 98 15 L 92 24 L 86 15 Z"/>
+    <!-- Center star (slightly larger) -->
+    <path d="M 128 4 L 132 12 L 128 20 L 124 12 Z M 128 4 L 136 8 L 128 20 L 120 8 Z"/>
+    <path d="M 164 12 L 167 18 L 164 24 L 161 18 Z M 164 12 L 170 15 L 164 24 L 158 15 Z"/>
+    <path d="M 196 22 L 199 28 L 196 34 L 193 28 Z M 196 22 L 202 25 L 196 34 L 190 25 Z"/>
+    <path d="M 228 36 L 231 42 L 228 48 L 225 42 Z M 228 36 L 234 39 L 228 48 L 222 39 Z"/>
+  </g>
+</svg>

@@ -27,7 +27,7 @@ use crate::api::state::AppState;
 use crate::api::types::DaemonStatus;
 use crate::storage::config::RepoPaths;
 
-const SHUTDOWN_TICK: Duration = Duration::from_millis(200);
+const SHUTDOWN_TICK: Duration = Duration::from_millis(100);
 
 /// Spawn the HTTP server on a dedicated OS thread with its own tokio
 /// runtime. The thread terminates when `term_flag` flips to true.
@@ -147,6 +147,8 @@ fn router(state: AppState) -> axum::Router {
         .route("/", get(crate::api::web::index))
         .route("/app.js", get(crate::api::web::app_js))
         .route("/app.css", get(crate::api::web::app_css))
+        .route("/logo.svg", get(crate::api::web::logo_svg))
+        .route("/favicon.svg", get(crate::api::web::favicon_svg))
         .fallback(crate::api::web::spa_fallback)
         .with_state(state)
 }
