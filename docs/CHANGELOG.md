@@ -10,6 +10,20 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- Substantive prompt framing for all 10 agents
+  (`src/adapter/registry.rs`). Added two new `AgentDef` fields:
+  `red_flags` (Markdown anti-rationalization table) and `verification`
+  (pre-exit checklist). Each agent carries 5–8 red-flag rows targeting
+  its load-bearing failure modes — e.g., spec leaking architecture
+  content, test writing source code, implement weakening RED tests,
+  review self-approving. Both host adapters (`claude_code`, `opencode`)
+  render `## Red flags` and `## Verification before exit` sections
+  after `Scope fences`. New test `every_agent_carries_red_flags_and_verification`
+  asserts the canonical table header renders for every agent.
+  Validation via the eval framework is deferred until
+  `ANTHROPIC_API_KEY` is available; per CLAUDE.md ("Skills are
+  behavior-shaping code, not prose") that's the gating signal for
+  whether the framing actually shapes behavior. (#6)
 - Rustdoc coverage for the crate root and remaining small modules.
   Substantive `//!` on `src/lib.rs` (orientation, build targets,
   module map with pointers to docs/architecture/overview.md),

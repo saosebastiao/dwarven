@@ -1,16 +1,13 @@
 ---
 id: 6
 title: 'Substantive agent prompts: Red Flags + anti-rationalization framing'
-type: doc
-state: doc
+type: feature
+state: done
 priority: p2
-blocked_by:
-- 7
-- 10
 epic: agent-prompt-content
 created: 2026-05-10T02:03:51Z
 created_by: maintainer
-updated: 2026-05-11T04:04:00Z
+updated: 2026-05-11T17:49:34Z
 ---
 The Claude Code adapter (slice 18, src/adapter/claude_code/agents.rs) renders structured-but-spare prompts from agent-roster.md content: trigger / inputs / outputs / exit conditions / scope fences / pointers. Per CLAUDE.md "Skills are behavior-shaping code, not prose. Changes to Red Flags tables, rationalization lists, and 'EXTREMELY-IMPORTANT' framing need eval evidence."
 

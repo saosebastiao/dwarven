@@ -177,6 +177,34 @@ fn dialogue_agents_include_ask_user_question() {
 }
 
 #[test]
+fn every_agent_carries_red_flags_and_verification() {
+    let tmp = tempfile::tempdir().unwrap();
+    init_with_adapter(tmp.path());
+
+    for name in &[
+        "spec", "architect", "gap", "pm", "plan", "test", "implement", "review", "doc", "triage",
+    ] {
+        let p = tmp.path().join(format!(".claude/agents/{name}.md"));
+        let content = std::fs::read_to_string(&p).unwrap();
+        assert!(
+            content.contains("## Red flags"),
+            "{name} should have a Red flags section"
+        );
+        assert!(
+            content.contains("## Verification before exit"),
+            "{name} should have a Verification before exit section"
+        );
+        // Sanity: at least one anti-rationalization row, format
+        // "| Tempting thought | Reality |" sets up; we look for the
+        // header row's separator as a proxy for table presence.
+        assert!(
+            content.contains("| Tempting thought | Reality |"),
+            "{name} red-flags should be a Markdown table"
+        );
+    }
+}
+
+#[test]
 fn discrete_agents_exclude_ask_user_question() {
     let tmp = tempfile::tempdir().unwrap();
     init_with_adapter(tmp.path());

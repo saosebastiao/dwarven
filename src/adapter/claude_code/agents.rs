@@ -50,6 +50,12 @@ pub fn render(agent: &AgentDef) -> String {
     section(&mut out, "Outputs", agent.outputs);
     section(&mut out, "Exit conditions", agent.exit_conditions);
     section(&mut out, "Scope fences", agent.scope_fences);
+    if !agent.red_flags.is_empty() {
+        section(&mut out, "Red flags", agent.red_flags);
+    }
+    if !agent.verification.is_empty() {
+        section(&mut out, "Verification before exit", agent.verification);
+    }
 
     out.push_str("## Pointers\n\n");
     out.push_str("- `docs/specs/dwarven.md` — top-level identity and invariants.\n");

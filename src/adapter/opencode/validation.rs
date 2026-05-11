@@ -65,6 +65,8 @@ mod tests {
             outputs: "",
             exit_conditions: "",
             scope_fences: "",
+            red_flags: "",
+            verification: "",
             non_bash_tools: &["Read"],
             bash_patterns: patterns,
         }
