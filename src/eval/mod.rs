@@ -4,7 +4,7 @@
 //! by the production daemon; nothing here ships in the `dwarven` binary
 //! beyond what `cargo build` chooses to include based on reachability.
 
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
 
 pub mod matcher;
 pub mod mock_tools;
