@@ -10,6 +10,13 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- `docs/cli-reference.md`: standalone reference for every `dwarven`
+  subcommand, flag, and exit code with realistic examples. Covers
+  global flags, init (including dual host install), the full issue
+  surface (create/view/list/transition/close/comment/blocker/priority/
+  priority-override/edit/dep), serve, daemon control, schedule next,
+  reindex, and config get/set. Forward-linked from
+  `docs/getting-started.md`. (#13)
 - `docs/getting-started.md`: end-to-end quickstart walkthrough.
   Covers prerequisites, `cargo install --path .`, `dwarven init`,
   host adapter choice (Claude Code vs opencode) with the materialize-time
