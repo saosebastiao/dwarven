@@ -10,6 +10,14 @@ Per Dwarven's spec versioning model: major spec versions migrate to versioned di
 
 ### Added
 
+- Dependencies graph view groups nodes by epic per
+  `web-ui.md#R7.4`. Each epic cluster renders a translucent
+  background rectangle with a clickable label; collapsed clusters
+  appear as a single placeholder node showing `<epic> (<N>)`.
+  Edge rewiring on collapse: in/out edges of cluster members are
+  redirected to the placeholder; intra-cluster edges are dropped.
+  Collapsed state is part of the URL hash (e.g.
+  `#/deps?collapsed=alpha,beta`) so views are shareable. (#9)
 - SSE event stream now supports `Last-Event-ID`-based replay on
   reconnect (`web-api.md#R5.6`). Each emitted event carries a
   monotonic seq id; clients reconnecting with the header receive
